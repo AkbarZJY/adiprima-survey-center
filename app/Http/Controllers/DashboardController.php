@@ -17,20 +17,54 @@ class DashboardController extends Controller
 {
     public function index(Request $request)
     {
-        // 1. All available surveys for dropdown switcher
-        $allSurveys = Survey::withCount(['responses', 'questions'])->orderBy('title')->get();
+        // 1. Fetch categories from SurveyCategory model with fallback to defaults
+        $dbCategoryModels = \App\Models\SurveyCategory::orderBy('order')->orderBy('name')->pluck('name')->all();
+        $standardCategories = !empty($dbCategoryModels) ? $dbCategoryModels : [
+            'Survey Budaya Kerja',
+            'Employee Engagement Survey',
+            'Customer Satisfaction Survey',
+        ];
 
-        // Selected Survey
+        $allSurveys = Survey::withCount(['responses', 'questions'])
+            ->orderBy('is_active', 'desc')
+            ->orderBy('start_date', 'desc')
+            ->orderBy('id', 'desc')
+            ->get();
+
+        // Get all unique categories present in surveys or standard list
+        $surveyCategoryStrings = $allSurveys->pluck('category')->filter()->unique()->values()->all();
+        $allCategories = array_values(array_unique(array_merge($standardCategories, $surveyCategoryStrings)));
+
+        // Group surveys by category
+        $surveysByCategory = $allSurveys->groupBy('category');
+
+        // Resolve Active Survey and Selected Category
         $surveyId = $request->get('survey_id');
+        $categoryParam = $request->get('category');
+
         if ($surveyId) {
             $activeSurvey = Survey::find($surveyId);
-        }
-        if (empty($activeSurvey)) {
-            $activeSurvey = Survey::where('slug', 'engagement-survey')->first() ?? Survey::first();
+            $selectedCategory = $activeSurvey ? $activeSurvey->category : ($categoryParam ?? $allCategories[0]);
+        } elseif ($categoryParam) {
+            $selectedCategory = $categoryParam;
+            // Get active or first survey in this category
+            $activeSurvey = Survey::where('category', $selectedCategory)->where('is_active', true)->latest()->first()
+                ?? Survey::where('category', $selectedCategory)->latest()->first();
+        } else {
+            // Default to Employee Engagement Survey 2026 or first active survey
+            $activeSurvey = Survey::where('slug', 'engagement-survey')->first()
+                ?? Survey::where('is_active', true)->first()
+                ?? Survey::first();
+            $selectedCategory = $activeSurvey ? $activeSurvey->category : $allCategories[0];
         }
 
         if (!$activeSurvey) {
-            return view('admin.dashboard.empty', ['allSurveys' => $allSurveys]);
+            return view('admin.dashboard.empty', [
+                'allSurveys' => $allSurveys,
+                'allCategories' => $allCategories,
+                'surveysByCategory' => $surveysByCategory,
+                'selectedCategory' => $selectedCategory,
+            ]);
         }
 
         $period = $activeSurvey->activePeriod;
@@ -178,6 +212,101 @@ class DashboardController extends Controller
             ->take(50)
             ->get();
 
+        // Group all feedback answers by question with keyword/feedback frequency totals
+        $allFeedbackAnswers = SurveyAnswer::whereHas('response', function ($q) use ($activeSurvey) {
+                $q->where('survey_id', $activeSurvey->id);
+            })
+            ->where(function ($q) {
+                $q->where(function ($sub) {
+                    $sub->whereNotNull('reason_text')->where('reason_text', '!=', '');
+                })->orWhere(function ($sub) {
+                    $sub->whereNotNull('text_answer')->where('text_answer', '!=', '');
+                });
+            })
+            ->with(['question.dimensionModel', 'response'])
+            ->orderBy('id', 'desc')
+            ->get();
+
+        $groupedByQuestion = $allFeedbackAnswers->groupBy('question_id');
+        $feedbackByQuestion = [];
+
+        foreach ($questions as $q) {
+            $qAnswers = $groupedByQuestion->get($q->id, collect());
+            if ($qAnswers->isEmpty()) {
+                continue;
+            }
+
+            // Group text items by normalized phrase to count totals
+            $textCounts = [];
+            foreach ($qAnswers as $ans) {
+                $rawText = trim($ans->reason_text ?: $ans->text_answer);
+                if ($rawText === '') continue;
+
+                $normKey = mb_strtolower(preg_replace('/\s+/', ' ', $rawText));
+                
+                if (!isset($textCounts[$normKey])) {
+                    $textCounts[$normKey] = [
+                        'sample_text' => $rawText,
+                        'total' => 0,
+                        'departments' => [],
+                        'responses' => [],
+                        'scores' => [],
+                    ];
+                }
+
+                $textCounts[$normKey]['total']++;
+                if ($ans->response?->department && !in_array($ans->response->department, $textCounts[$normKey]['departments'])) {
+                    $textCounts[$normKey]['departments'][] = $ans->response->department;
+                }
+                if ($ans->reality_score !== null) {
+                    $textCounts[$normKey]['scores'][] = $ans->reality_score;
+                }
+                $textCounts[$normKey]['responses'][] = [
+                    'name' => $ans->response?->name ?? 'Responden',
+                    'dept' => $ans->response?->department ?? '-',
+                    'pos' => $ans->response?->position ?? '-',
+                    'reality' => $ans->reality_score,
+                    'expectation' => $ans->expectation_score,
+                    'text' => $rawText,
+                    'submitted_at' => $ans->response?->submitted_at ?? $ans->created_at,
+                ];
+            }
+
+            // Sort by highest frequency count
+            uasort($textCounts, function ($a, $b) {
+                return $b['total'] <=> $a['total'];
+            });
+
+            // Extract keyword frequency breakdown
+            $stopWords = [
+                'dan', 'yang', 'di', 'ke', 'dari', 'ini', 'itu', 'untuk', 'pada', 'adalah', 
+                'dengan', 'saya', 'kami', 'kita', 'ada', 'bisa', 'karena', 'agar', 'atau', 
+                'sudah', 'belum', 'lebih', 'harus', 'mohon', 'tolong', 'sangat', 'juga', 
+                'akan', 'nya', 'yg', 'dlm', 'dg', 'krn', 'tdk', 'tidak', 'agak', 'masih',
+                'oleh', 'atas', 'serta', 'bagi', 'saat', 'para', 'banyak', 'kurang'
+            ];
+            $keywordFreq = [];
+            foreach ($qAnswers as $ans) {
+                $text = trim($ans->reason_text ?: $ans->text_answer);
+                $cleanWords = preg_split('/[\s,\.\?!:;\(\)\[\]"\'\/]+/', mb_strtolower($text));
+                foreach ($cleanWords as $w) {
+                    $w = trim($w);
+                    if (mb_strlen($w) >= 3 && !in_array($w, $stopWords) && !is_numeric($w)) {
+                        $keywordFreq[$w] = ($keywordFreq[$w] ?? 0) + 1;
+                    }
+                }
+            }
+            arsort($keywordFreq);
+            $topKeywords = array_slice($keywordFreq, 0, 8, true);
+
+            $feedbackByQuestion[] = [
+                'question' => $q,
+                'total_feedback' => $qAnswers->count(),
+                'grouped_items' => array_values($textCounts),
+                'top_keywords' => $topKeywords,
+            ];
+        }
+
         // 7. Filter Options
         $allDepartments = [
             'HRGA', 'PPIC', 'QC', 'UTILITY', 'R&D',
@@ -190,15 +319,16 @@ class DashboardController extends Controller
         ];
 
         return view('admin.dashboard.index', compact(
-            'allSurveys', 'activeSurvey', 'period', 'tab', 'search', 'departmentFilter', 'positionFilter',
+            'allSurveys', 'allCategories', 'selectedCategory', 'surveysByCategory',
+            'activeSurvey', 'period', 'tab', 'search', 'departmentFilter', 'positionFilter',
             'responses', 'questions', 'rekapData', 'totalTarget', 'totalFilled', 'overallProgressPct',
             'surveyDimensions', 'dimensionScores', 'dimensionExpectationScores', 'dimensionGaps',
             'overallEngagementScore', 'highestDimension', 'highestScore', 'lowestDimension', 'lowestScore',
-            'lowScoreReasons', 'essayAnswers', 'allDepartments', 'allPositions'
+            'lowScoreReasons', 'essayAnswers', 'feedbackByQuestion', 'allDepartments', 'allPositions'
         ));
     }
 
-    public function exportCsv(Request $request)
+    public function exportXlsx(Request $request)
     {
         $surveyId = $request->get('survey_id');
         if ($surveyId) {
@@ -209,78 +339,172 @@ class DashboardController extends Controller
 
         $questions = SurveyQuestion::where('survey_id', $activeSurvey->id)
             ->orderBy('order')
+            ->orderBy('id')
             ->get();
 
         $responses = SurveyResponse::where('survey_id', $activeSurvey->id)
             ->with(['answers.question'])
+            ->orderBy('submitted_at', 'desc')
             ->get();
 
-        $fileName = "raw_data_" . Str::slug($activeSurvey->title) . "_" . date('Ymd_His') . ".csv";
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Raw Data');
 
+        // Header columns
         $headers = [
-            "Content-type" => "text/csv; charset=UTF-8",
-            "Content-Disposition" => "attachment; filename={$fileName}",
-            "Pragma" => "no-cache",
-            "Cache-Control" => "must-revalidate, post-check=0, pre-check=0",
-            "Expires" => "0"
+            'No',
+            'NIK',
+            'Nama Lengkap',
+            'Jenis Kelamin',
+            'Usia',
+            'Pendidikan',
+            'Status Kepegawaian',
+            'Lama Bekerja',
+            'Departemen',
+            'Jabatan',
+            'Mulai Dikerjakan',
+            'Selesai Dikerjakan',
+            'Lama Pengerjaan (Menit)',
         ];
 
-        $callback = function () use ($responses, $questions) {
-            $file = fopen('php://output', 'w');
-            // UTF-8 BOM for Excel compatibility
-            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
-
-            // Header row
-            $headerRow = ['No', 'NIK', 'Nama', 'Jenis Kelamin', 'Usia', 'Pendidikan', 'Status Kepegawaian', 'Lama Bekerja', 'Departemen', 'Jabatan', 'Waktu Submit'];
-            foreach ($questions as $q) {
-                if ($q->question_type === 'dual_rating') {
-                    $headerRow[] = 'Q' . $q->question_number . ' - ' . ($q->indicator_title ?? $q->dimension) . ' (Harapan)';
-                    $headerRow[] = 'Q' . $q->question_number . ' - ' . ($q->indicator_title ?? $q->dimension) . ' (Kenyataan)';
-                    $headerRow[] = 'Q' . $q->question_number . ' (Alasan Nilai Rendah)';
-                } elseif ($q->question_type === 'essay') {
-                    $headerRow[] = 'Q' . $q->question_number . ' - ' . ($q->indicator_title ?? 'Uraian');
-                } else {
-                    $headerRow[] = 'Q' . $q->question_number . ' - ' . ($q->indicator_title ?? $q->dimension) . ' (Skor)';
+        foreach ($questions as $q) {
+            if ($q->question_type === 'dual_rating' || (empty($q->question_type) && $q->section === 'B')) {
+                $headers[] = 'Q' . $q->question_number . ' - ' . ($q->indicator_title ?? $q->dimension ?? 'Soal') . ' (Harapan)';
+                $headers[] = 'Q' . $q->question_number . ' - ' . ($q->indicator_title ?? $q->dimension ?? 'Soal') . ' (Kenyataan)';
+                $headers[] = 'Q' . $q->question_number . ' (Alasan Nilai Rendah)';
+            } elseif ($q->question_type === 'essay') {
+                $headers[] = 'Q' . $q->question_number . ' - ' . ($q->indicator_title ?? 'Uraian');
+            } elseif ($q->question_type === 'multiple_choice') {
+                $headers[] = 'Q' . $q->question_number . ' - ' . ($q->indicator_title ?? $q->dimension ?? 'Pilihan Ganda');
+                if ($q->require_reason_on_low_score) {
+                    $headers[] = 'Q' . $q->question_number . ' (Keterangan / Alasan)';
+                }
+            } else {
+                $headers[] = 'Q' . $q->question_number . ' - ' . ($q->indicator_title ?? $q->dimension ?? 'Skor');
+                if ($q->require_reason_on_low_score) {
+                    $headers[] = 'Q' . $q->question_number . ' (Alasan Nilai Rendah)';
                 }
             }
-            fputcsv($file, $headerRow);
+        }
 
-            $no = 1;
-            foreach ($responses as $resp) {
-                $answersMap = $resp->answers->keyBy('question_id');
-                $row = [
-                    $no++,
-                    $resp->nik,
-                    $resp->name,
-                    $resp->gender,
-                    $resp->age,
-                    $resp->education,
-                    $resp->employment_status,
-                    $resp->tenure,
-                    $resp->department,
-                    $resp->position,
-                    $resp->submitted_at ? $resp->submitted_at->format('Y-m-d H:i') : '-',
-                ];
+        // Write Header Row
+        $sheet->fromArray($headers, null, 'A1');
 
-                foreach ($questions as $q) {
-                    $ans = $answersMap->get($q->id);
-                    if ($q->question_type === 'dual_rating') {
-                        $row[] = $ans ? ($ans->expectation_score ?? '-') : '-';
-                        $row[] = $ans ? ($ans->reality_score ?? '-') : '-';
+        // Style Header Row
+        $highestColumn = $sheet->getHighestColumn();
+        $headerRange = 'A1:' . $highestColumn . '1';
+        $sheet->getStyle($headerRange)->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'color' => ['rgb' => 'FFFFFF'],
+                'size' => 10,
+                'name' => 'Segoe UI',
+            ],
+            'fill' => [
+                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '0C2B64'],
+            ],
+            'alignment' => [
+                'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+                'wrapText' => true,
+            ],
+        ]);
+        $sheet->getRowDimension(1)->setRowHeight(30);
+
+        // Write Data Rows
+        $rowIndex = 2;
+        $no = 1;
+        foreach ($responses as $resp) {
+            $answersMap = $resp->answers->keyBy('question_id');
+
+            $startedAt = $resp->started_at ?? $resp->created_at;
+            $submittedAt = $resp->submitted_at ?? $resp->updated_at;
+
+            $durationMinutes = '-';
+            if ($startedAt && $submittedAt) {
+                $diffSec = $startedAt->diffInSeconds($submittedAt);
+                $minVal = round($diffSec / 60, 1);
+                $durationMinutes = $minVal < 1 ? '< 1' : $minVal;
+            }
+
+            $row = [
+                $no++,
+                $resp->nik ?? '-',
+                $resp->name,
+                $resp->gender ?? '-',
+                $resp->age ?? '-',
+                $resp->education ?? '-',
+                $resp->employment_status ?? '-',
+                $resp->tenure ?? '-',
+                $resp->department ?? '-',
+                $resp->position ?? '-',
+                $startedAt ? $startedAt->format('d/m/Y ; H:i') : '-',
+                $submittedAt ? $submittedAt->format('d/m/Y ; H:i') : '-',
+                $durationMinutes,
+            ];
+
+            foreach ($questions as $q) {
+                $ans = $answersMap->get($q->id);
+                if ($q->question_type === 'dual_rating' || (empty($q->question_type) && $q->section === 'B')) {
+                    $row[] = $ans ? ($ans->expectation_score ?? '-') : '-';
+                    $row[] = $ans ? ($ans->reality_score ?? '-') : '-';
+                    $row[] = $ans ? ($ans->reason_text ?? '-') : '-';
+                } elseif ($q->question_type === 'essay') {
+                    $row[] = $ans ? ($ans->text_answer ?? '-') : '-';
+                } elseif ($q->question_type === 'multiple_choice') {
+                    $row[] = $ans ? ($ans->text_answer ?? '-') : '-';
+                    if ($q->require_reason_on_low_score) {
                         $row[] = $ans ? ($ans->reason_text ?? '-') : '-';
-                    } elseif ($q->question_type === 'essay') {
-                        $row[] = $ans ? ($ans->text_answer ?? '-') : '-';
-                    } else {
-                        $row[] = $ans ? ($ans->reality_score ?? $ans->text_answer ?? '-') : '-';
+                    }
+                } else {
+                    $row[] = $ans ? ($ans->reality_score ?? $ans->text_answer ?? '-') : '-';
+                    if ($q->require_reason_on_low_score) {
+                        $row[] = $ans ? ($ans->reason_text ?? '-') : '-';
                     }
                 }
-
-                fputcsv($file, $row);
             }
 
-            fclose($file);
-        };
+            $sheet->fromArray($row, null, 'A' . $rowIndex);
+            $rowIndex++;
+        }
 
-        return new StreamedResponse($callback, 200, $headers);
+        $lastDataRow = max(2, $rowIndex - 1);
+        $fullDataRange = 'A1:' . $highestColumn . $lastDataRow;
+
+        // Apply Borders & Font for whole table
+        $sheet->getStyle($fullDataRange)->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                    'color' => ['rgb' => 'CBD5E1'],
+                ],
+            ],
+            'font' => [
+                'name' => 'Segoe UI',
+                'size' => 9.5,
+            ],
+        ]);
+
+        // Auto-fit Column Widths
+        foreach (range(1, count($headers)) as $colIndex) {
+            $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex);
+            $sheet->getColumnDimension($colLetter)->setAutoSize(true);
+        }
+
+        // Freeze top header row
+        $sheet->freezePane('A2');
+
+        $fileName = "Raw_Data_" . Str::slug($activeSurvey->title) . "_" . date('Ymd_His') . ".xlsx";
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $writer->save('php://output');
+        }, $fileName, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => "attachment; filename=\"{$fileName}\"",
+            'Cache-Control' => 'max-age=0',
+        ]);
     }
 }

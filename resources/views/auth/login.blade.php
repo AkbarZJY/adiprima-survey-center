@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Adiprima Survey Center</title>
     <!-- Favicon (Icon Only without text) -->
-    <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
-    <link rel="alternate icon" type="image/svg+xml" href="{{ asset('images/adiprima-icon.svg') }}">
+    <link rel="icon" type="image/svg" href="{{ asset('images/adiprima-icon.svg') }}">
+    <link rel="alternate icon" type="image/svg" href="{{ asset('images/adiprima-icon.svg') }}">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -330,7 +330,7 @@
 
             <div class="banner-headline">
                 <h1>Pusat Pengelolaan Survei<br>PT Adiprima Suraprinta</h1>
-                <p>Platform survei terintegrasi untuk mengukur keterlibatan karyawan, budaya kerja, dan kepuasan secara tepat dan akurat.</p>
+                <p>Sistem informasi terpadu dalam memfasilitasi pelaksanaan, pemantauan, serta analisis berbagai kebutuhan riset perusahaan.</p>
             </div>
         </div>
 
@@ -338,7 +338,7 @@
         <div class="login-form-container">
             <div class="form-header">
                 <h2>Selamat datang kembali!</h2>
-                <p>Masuk untuk mengakses Adiprima Survey Center</p>
+                <p>Masuk untuk mengakses Adiprima One Survey Center</p>
             </div>
 
             @if($errors->any())

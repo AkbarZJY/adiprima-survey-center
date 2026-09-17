@@ -30,16 +30,56 @@
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.5rem;">
                 <div>
-                    <label style="display: block; font-size: 0.875rem; font-weight: 700; color: #334155; margin-bottom: 0.4rem;">
-                        Kategori Survei *
-                    </label>
-                    <input type="text" name="category" required value="{{ old('category', $survey->category) }}" style="width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.95rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                        <label style="font-size: 0.875rem; font-weight: 700; color: #334155;">
+                            Kategori Survei *
+                        </label>
+                        <a href="{{ route('admin.survey-categories.index') }}" target="_blank" style="font-size: 0.75rem; color: #2563EB; text-decoration: none; font-weight: 600;">
+                            <i class="bi bi-gear"></i> Kelola Kategori
+                        </a>
+                    </div>
+                    <select name="category_select" id="categorySelect" onchange="toggleCustomCategory(this)" style="width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.95rem; background: #FFF; cursor: pointer;">
+                        @foreach($categories as $cat)
+                            <option value="{{ $cat->name }}" {{ old('category', $survey->category) == $cat->name ? 'selected' : '' }}>
+                                {{ $cat->name }}
+                            </option>
+                        @endforeach
+                        <option value="__custom__" {{ !$categories->pluck('name')->contains(old('category', $survey->category)) ? 'selected' : '' }}>
+                            + Kategori Baru / Ketik Manual
+                        </option>
+                    </select>
+
+                    <input type="text" name="category" id="customCategoryInput" value="{{ old('category', $survey->category) }}" placeholder="Ketik nama kategori..." style="width: 100%; margin-top: 0.5rem; padding: 0.65rem 0.85rem; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 0.9rem; display: none;">
                 </div>
                 <div>
                     <label style="display: block; font-size: 0.875rem; font-weight: 700; color: #334155; margin-bottom: 0.4rem;">
-                        Ikon (Bootstrap Icons)
+                        Pilih Ikon Kuesioner
                     </label>
-                    <input type="text" name="icon" value="{{ old('icon', $survey->icon) }}" style="width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.95rem;">
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <div style="width: 44px; height: 44px; border-radius: 8px; background: #EFF6FF; color: #2563EB; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; border: 1px solid #BFDBFE; flex-shrink: 0;">
+                            <i class="bi {{ old('icon', $survey->icon ?: 'bi-clipboard-data') }}" id="surveyEditIconPreviewI"></i>
+                        </div>
+                        <select name="icon" id="surveyEditIconSelect" onchange="onSurveyEditIconChange(this)" style="width: 100%; padding: 0.725rem 0.85rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.9rem; background: #FFF; font-weight: 600;">
+                            <option value="bi-clipboard-data" {{ old('icon', $survey->icon) == 'bi-clipboard-data' ? 'selected' : '' }}>📋 Clipboard Data (Umum / Kuesioner)</option>
+                            <option value="bi-people-fill" {{ old('icon', $survey->icon) == 'bi-people-fill' ? 'selected' : '' }}>👥 People (Budaya Kerja & Tim)</option>
+                            <option value="bi-person-heart" {{ old('icon', $survey->icon) == 'bi-person-heart' ? 'selected' : '' }}>💖 Person Heart (Employee Engagement)</option>
+                            <option value="bi-emoji-smile-fill" {{ old('icon', $survey->icon) == 'bi-emoji-smile-fill' ? 'selected' : '' }}>😊 Emoji Smile (Customer Satisfaction / CS)</option>
+                            <option value="bi-heart-pulse-fill" {{ old('icon', $survey->icon) == 'bi-heart-pulse-fill' ? 'selected' : '' }}>💓 Heart Pulse (Kesejahteraan & Vitalitas)</option>
+                            <option value="bi-award-fill" {{ old('icon', $survey->icon) == 'bi-award-fill' ? 'selected' : '' }}>🎖️ Award (Penghargaan & Apresiasi)</option>
+                            <option value="bi-shield-check" {{ old('icon', $survey->icon) == 'bi-shield-check' ? 'selected' : '' }}>🛡️ Shield Check (K3, Kepatuhan & Safety)</option>
+                            <option value="bi-graph-up-arrow" {{ old('icon', $survey->icon) == 'bi-graph-up-arrow' ? 'selected' : '' }}>📈 Graph Up (Pertumbuhan & Kinerja)</option>
+                            <option value="bi-briefcase-fill" {{ old('icon', $survey->icon) == 'bi-briefcase-fill' ? 'selected' : '' }}>💼 Briefcase (Pekerjaan & Manajemen)</option>
+                            <option value="bi-chat-dots-fill" {{ old('icon', $survey->icon) == 'bi-chat-dots-fill' ? 'selected' : '' }}>💬 Chat Dots (Komunikasi & Umpan Balik)</option>
+                            <option value="bi-lightbulb-fill" {{ old('icon', $survey->icon) == 'bi-lightbulb-fill' ? 'selected' : '' }}>💡 Lightbulb (Inovasi & Pengembangan)</option>
+                            <option value="bi-building" {{ old('icon', $survey->icon) == 'bi-building' ? 'selected' : '' }}>🏢 Building (Korporat & Lingkungan Kerja)</option>
+                            <option value="bi-star-fill" {{ old('icon', $survey->icon) == 'bi-star-fill' ? 'selected' : '' }}>⭐ Star (Kualitas & Layanan Prima)</option>
+                            <option value="bi-speedometer2" {{ old('icon', $survey->icon) == 'bi-speedometer2' ? 'selected' : '' }}>⏱️ Speedometer (Produktivitas & Efisiensi)</option>
+                            <option value="bi-mortarboard-fill" {{ old('icon', $survey->icon) == 'bi-mortarboard-fill' ? 'selected' : '' }}>🎓 Mortarboard (Pelatihan & Edukasi)</option>
+                            <option value="bi-trophy-fill" {{ old('icon', $survey->icon) == 'bi-trophy-fill' ? 'selected' : '' }}>🏆 Trophy (Prestasi & Keunggulan)</option>
+                            <option value="bi-gear-fill" {{ old('icon', $survey->icon) == 'bi-gear-fill' ? 'selected' : '' }}>⚙️ Gear (Operasional Pabrik / Teknis)</option>
+                            <option value="bi-tags-fill" {{ old('icon', $survey->icon) == 'bi-tags-fill' ? 'selected' : '' }}>🏷️ Tags (Kategori Umum)</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -99,4 +139,35 @@
         </form>
     </div>
 </div>
+@endsection
+
+@section('scripts')
+<script>
+    function onSurveyEditIconChange(select) {
+        const previewI = document.getElementById('surveyEditIconPreviewI');
+        if (previewI) {
+            previewI.className = 'bi ' + select.value;
+        }
+    }
+
+    function toggleCustomCategory(select) {
+        const customInput = document.getElementById('customCategoryInput');
+        if (select.value === '__custom__') {
+            customInput.style.display = 'block';
+            customInput.focus();
+            customInput.required = true;
+        } else {
+            customInput.style.display = 'none';
+            customInput.value = select.value;
+            customInput.required = false;
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const select = document.getElementById('categorySelect');
+        if (select) toggleCustomCategory(select);
+        const iconSelect = document.getElementById('surveyEditIconSelect');
+        if (iconSelect) onSurveyEditIconChange(iconSelect);
+    });
+</script>
 @endsection

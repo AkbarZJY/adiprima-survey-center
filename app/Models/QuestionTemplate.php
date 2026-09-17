@@ -20,6 +20,7 @@ class QuestionTemplate extends Model
         'options_json',
         'applies_to_employment_status',
         'applies_to_positions',
+        'applies_to_gender',
         'order',
     ];
 

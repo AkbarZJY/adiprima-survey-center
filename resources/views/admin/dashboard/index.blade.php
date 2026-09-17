@@ -19,8 +19,94 @@
         gap: 1rem;
     }
 
+    .category-nav-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .category-nav-card {
+        background: #FFFFFF;
+        border: 2px solid #E2E8F0;
+        border-radius: 14px;
+        padding: 1rem 1.25rem;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .category-nav-card:hover {
+        border-color: #3B82F6;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px -4px rgba(59, 130, 246, 0.12);
+    }
+
+    .category-nav-card.active {
+        border-color: var(--color-navy-primary);
+        background: linear-gradient(145deg, #FFFFFF, #EFF6FF);
+        box-shadow: 0 8px 20px -4px rgba(12, 43, 100, 0.15);
+    }
+
+    .category-nav-card.active::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 5px;
+        background: var(--color-navy-primary);
+    }
+
+    .cat-icon-box {
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.35rem;
+        flex-shrink: 0;
+        transition: all 0.2s ease;
+    }
+
+    .category-nav-card.active .cat-icon-box {
+        background: var(--color-navy-primary);
+        color: #FFFFFF;
+    }
+
+    .category-nav-card:not(.active) .cat-icon-box {
+        background: #F1F5F9;
+        color: #475569;
+    }
+
+    .cat-title-text {
+        font-weight: 800;
+        font-size: 0.95rem;
+        color: #0F172A;
+        line-height: 1.3;
+    }
+
+    .category-nav-card.active .cat-title-text {
+        color: var(--color-navy-primary);
+    }
+
+    .cat-badge-info {
+        font-size: 0.75rem;
+        color: #64748B;
+        margin-top: 0.2rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
     .survey-selector-card {
-        background: linear-gradient(135deg, #0C2B64, #1E40AF);
+        background: linear-gradient(135deg, #0C2B64 0%, #1E40AF 100%);
         color: #FFFFFF;
         border-radius: 16px;
         padding: 1.5rem 1.75rem;
@@ -30,7 +116,7 @@
         align-items: center;
         flex-wrap: wrap;
         gap: 1.5rem;
-        box-shadow: 0 10px 25px -5px rgba(12, 43, 100, 0.2);
+        box-shadow: 0 10px 25px -5px rgba(12, 43, 100, 0.25);
     }
 
     .nav-tabs-wrapper {
@@ -159,6 +245,10 @@
     }
 
     @media (max-width: 768px) {
+        .category-nav-grid {
+            grid-template-columns: 1fr;
+        }
+
         .dashboard-header {
             flex-direction: column;
             align-items: stretch;
@@ -216,6 +306,67 @@
             font-size: 0.825rem;
         }
     }
+
+    .feedback-q-card {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 14px;
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+
+    .feedback-q-header {
+        background: #F8FAFC;
+        border-bottom: 1px solid #E2E8F0;
+        padding: 1rem 1.25rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+
+    .feedback-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+    }
+
+    .feedback-table th {
+        background: #F1F5F9;
+        color: #334155;
+        font-weight: 700;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #E2E8F0;
+        font-size: 0.8rem;
+    }
+
+    .feedback-table td {
+        padding: 0.85rem 1rem;
+        border-bottom: 1px solid #F1F5F9;
+        vertical-align: top;
+    }
+
+    .badge-count-total {
+        background: #EFF6FF;
+        color: #1D4ED8;
+        border: 1px solid #BFDBFE;
+        font-weight: 800;
+        font-size: 0.825rem;
+        padding: 0.25rem 0.65rem;
+        border-radius: 20px;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        white-space: nowrap;
+    }
+
+    .badge-count-total.high-freq {
+        background: #FEF3C7;
+        color: #92400E;
+        border-color: #FDE68A;
+    }
 </style>
 @endsection
 
@@ -232,33 +383,102 @@
                 Analisa data kuesioner, pantau partisipasi responden, dan eksplorasi insight per dimensi.
             </p>
         </div>
-
-        <div style="display: flex; align-items: center; gap: 0.6rem;">
-            <a href="{{ route('admin.surveys.questions', $activeSurvey->id) }}" style="background: #FFFFFF; border: 1px solid #CBD5E1; color: #334155; text-decoration: none; padding: 0.6rem 0.85rem; border-radius: 8px; font-size: 0.825rem; font-weight: 700; display: inline-flex; align-items: center; gap: 0.35rem;">
-                <i class="bi bi-ui-checks"></i> Soal
-            </a>
-
-            <a href="{{ route('admin.dashboard.export', ['survey_id' => $activeSurvey->id]) }}" style="background: #10B981; color: #FFF; text-decoration: none; padding: 0.6rem 0.95rem; border-radius: 8px; font-size: 0.825rem; font-weight: 700; display: inline-flex; align-items: center; gap: 0.35rem; box-shadow: 0 4px 10px rgba(16,185,129,0.25);">
-                <i class="bi bi-file-earmark-excel-fill"></i> Download CSV
-            </a>
-        </div>
     </div>
 
-    <!-- Active Survey Selector Banner -->
+    <!-- 1. Kategori Survey Selector Nav -->
+    <div style="margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 0.8rem; font-weight: 800; color: #64748B; text-transform: uppercase; letter-spacing: 0.05em;">
+            <i class="bi bi-grid-fill" style="color: var(--color-navy-primary);"></i> Pilih Kategori Survei:
+        </span>
+        <span style="font-size: 0.75rem; color: #94A3B8;">
+            Klik kategori untuk beralih topik kuesioner
+        </span>
+    </div>
+
+    <div class="category-nav-grid">
+        @foreach($allCategories as $catName)
+            @php
+                $catSurveys = $surveysByCategory->get($catName, collect());
+                $catCount = $catSurveys->count();
+                $isActiveCat = ($selectedCategory === $catName);
+                
+                $catIcon = match(trim($catName)) {
+                    'Survey Budaya Kerja', 'Budaya Kerja' => 'bi-people-fill',
+                    'Employee Engagement Survey', 'Engagement Survey' => 'bi-graph-up-arrow',
+                    'Customer Satisfaction Survey', 'Kepuasan Pelanggan' => 'bi-award-fill',
+                    'Internal Satisfaction Survey', 'Kepuasan Internal' => 'bi-chat-left-quote-fill',
+                    default => 'bi-clipboard-check-fill'
+                };
+            @endphp
+            <a href="{{ route('admin.dashboard', ['category' => $catName, 'tab' => $tab]) }}" 
+               class="category-nav-card {{ $isActiveCat ? 'active' : '' }}"
+               title="Pilih kategori {{ $catName }}">
+                <div class="cat-icon-box">
+                    <i class="bi {{ $catIcon }}"></i>
+                </div>
+                <div style="flex: 1; min-width: 0;">
+                    <div class="cat-title-text">{{ $catName }}</div>
+                    <div class="cat-badge-info">
+                        <span><i class="bi bi-collection"></i> {{ $catCount }} Edisi Survei</span>
+                        @if($isActiveCat)
+                            <span style="background: #DEF7EC; color: #03543F; font-size: 0.65rem; font-weight: 800; padding: 0.1rem 0.4rem; border-radius: 4px;">AKTIF</span>
+                        @endif
+                    </div>
+                </div>
+                @if($isActiveCat)
+                    <div style="color: var(--color-navy-primary); font-size: 1.1rem;">
+                        <i class="bi bi-check-circle-fill"></i>
+                    </div>
+                @endif
+            </a>
+        @endforeach
+    </div>
+
+    <!-- 2. Active Survey Selector Banner (With Category Dropdown for inner surveys) -->
     <div class="survey-selector-card">
-        <div style="flex: 1; min-width: 260px;">
-            <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #93C5FD; margin-bottom: 0.35rem;">
-                Pilih Instrumen Kuesioner:
+        <div style="flex: 1; min-width: 280px;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem; flex-wrap: wrap;">
+                <span style="font-size: 0.725rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #93C5FD; background: rgba(255,255,255,0.12); padding: 0.2rem 0.55rem; border-radius: 6px;">
+                    <i class="bi bi-tag-fill"></i> Kategori: {{ $selectedCategory }}
+                </span>
+                <span style="font-size: 0.75rem; color: #BFDBFE;">
+                    &bull; Pilih Edisi Kuesioner:
+                </span>
             </div>
+
             <form action="{{ route('admin.dashboard') }}" method="GET" id="surveySwitcherForm">
                 <input type="hidden" name="tab" value="{{ $tab }}">
-                <select name="survey_id" onchange="document.getElementById('surveySwitcherForm').submit()" style="background: #FFFFFF; color: #0F172A; font-weight: 700; font-size: 1rem; padding: 0.65rem 0.85rem; border-radius: 8px; border: none; width: 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.15); cursor: pointer;">
-                    @foreach($allSurveys as $s)
-                        <option value="{{ $s->id }}" {{ $activeSurvey->id == $s->id ? 'selected' : '' }}>
-                            {{ $s->title }} ({{ $s->category }})
-                        </option>
-                    @endforeach
-                </select>
+                <input type="hidden" name="category" value="{{ $selectedCategory }}">
+
+                <div style="position: relative;">
+                    <select name="survey_id" onchange="this.form.requestSubmit ? this.form.requestSubmit() : this.form.dispatchEvent(new Event('submit', {bubbles: true, cancelable: true}))" style="background: #FFFFFF; color: #0F172A; font-weight: 700; font-size: 0.975rem; padding: 0.75rem 1rem; border-radius: 10px; border: none; width: 100%; box-shadow: 0 4px 14px rgba(0,0,0,0.18); cursor: pointer; appearance: auto;">
+                        @php
+                            $currentCatSurveys = $surveysByCategory->get($selectedCategory, collect());
+                        @endphp
+                        
+                        @if($currentCatSurveys->count() > 0)
+                            <optgroup label="Daftar Survei dalam Kategori: {{ $selectedCategory }}">
+                                @foreach($currentCatSurveys as $s)
+                                    <option value="{{ $s->id }}" {{ $activeSurvey->id == $s->id ? 'selected' : '' }}>
+                                        {{ $s->title }} {{ $s->is_active ? '● (Aktif)' : '○ (Nonaktif / Arsip)' }} &bull; {{ $s->responses_count }} Responden
+                                    </option>
+                                @endforeach
+                            </optgroup>
+                        @endif
+
+                        @if($allSurveys->count() > $currentCatSurveys->count())
+                            <optgroup label="── Kategori Lainnya ──">
+                                @foreach($allSurveys as $otherS)
+                                    @if($otherS->category !== $selectedCategory)
+                                        <option value="{{ $otherS->id }}">
+                                            [{{ $otherS->category }}] {{ $otherS->title }}
+                                        </option>
+                                    @endif
+                                @endforeach
+                            </optgroup>
+                        @endif
+                    </select>
+                </div>
             </form>
         </div>
 
@@ -268,6 +488,8 @@
                 <div style="font-size: 0.85rem; font-weight: 700;">
                     @if($activeSurvey->start_date && $activeSurvey->end_date)
                         {{ $activeSurvey->start_date->format('d M') }} - {{ $activeSurvey->end_date->format('d M Y') }}
+                    @elseif($activeSurvey->start_date)
+                        Mulai {{ $activeSurvey->start_date->format('d M Y') }}
                     @else
                         Terbuka
                     @endif
@@ -292,16 +514,16 @@
 
     <!-- Submenu Tabs -->
     <div class="nav-tabs-wrapper">
-        <a href="{{ route('admin.dashboard', ['survey_id' => $activeSurvey->id, 'tab' => 'raw_data']) }}" class="tab-item {{ $tab == 'raw_data' ? 'active' : '' }}">
+        <a href="{{ route('admin.dashboard', ['survey_id' => $activeSurvey->id, 'category' => $selectedCategory, 'tab' => 'raw_data']) }}" class="tab-item {{ $tab == 'raw_data' ? 'active' : '' }}">
             <i class="bi bi-table"></i> 1. Raw Data
         </a>
-        <a href="{{ route('admin.dashboard', ['survey_id' => $activeSurvey->id, 'tab' => 'rekap_perolehan']) }}" class="tab-item {{ $tab == 'rekap_perolehan' ? 'active' : '' }}">
+        <a href="{{ route('admin.dashboard', ['survey_id' => $activeSurvey->id, 'category' => $selectedCategory, 'tab' => 'rekap_perolehan']) }}" class="tab-item {{ $tab == 'rekap_perolehan' ? 'active' : '' }}">
             <i class="bi bi-bar-chart-steps"></i> 2. Monitoring
         </a>
-        <a href="{{ route('admin.dashboard', ['survey_id' => $activeSurvey->id, 'tab' => 'analisa']) }}" class="tab-item {{ $tab == 'analisa' ? 'active' : '' }}">
+        <a href="{{ route('admin.dashboard', ['survey_id' => $activeSurvey->id, 'category' => $selectedCategory, 'tab' => 'analisa']) }}" class="tab-item {{ $tab == 'analisa' ? 'active' : '' }}">
             <i class="bi bi-pie-chart-fill"></i> 3. Analisa Dimensi
         </a>
-        <a href="{{ route('admin.dashboard', ['survey_id' => $activeSurvey->id, 'tab' => 'descriptive_reasons']) }}" class="tab-item {{ $tab == 'descriptive_reasons' ? 'active' : '' }}">
+        <a href="{{ route('admin.dashboard', ['survey_id' => $activeSurvey->id, 'category' => $selectedCategory, 'tab' => 'descriptive_reasons']) }}" class="tab-item {{ $tab == 'descriptive_reasons' ? 'active' : '' }}">
             <i class="bi bi-chat-left-text-fill"></i> 4. Feedback Uraian
         </a>
     </div>
@@ -309,9 +531,24 @@
     <!-- SUBMENU 1: DATA SURVEI (RAW DATA) -->
     @if($tab == 'raw_data')
     <div class="card-panel">
-        <h3 style="font-size: 1.1rem; font-weight: 700; color: #0F172A; margin-bottom: 1rem;">
-            1. Data Survei Mentah (Raw Data) &ndash; {{ $activeSurvey->title }}
-        </h3>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
+            <div>
+                <h3 style="font-size: 1.15rem; font-weight: 800; color: #0F172A; margin: 0;">
+                    1. Data Survei Mentah (Raw Data) &ndash; {{ $activeSurvey->title }}
+                </h3>
+                <p style="color: #64748B; font-size: 0.825rem; margin: 0.25rem 0 0 0;">
+                    Daftar seluruh respon butir pertanyaan beserta waktu pengerjaan kuesioner.
+                </p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                <a href="{{ route('admin.surveys.questions', $activeSurvey->id) }}" style="background: #FFFFFF; border: 1px solid #CBD5E1; color: #334155; text-decoration: none; padding: 0.55rem 0.95rem; border-radius: 8px; font-size: 0.85rem; font-weight: 700; display: inline-flex; align-items: center; gap: 0.4rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: all 0.15s ease;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='#FFFFFF'">
+                    <i class="bi bi-ui-checks"></i> Soal
+                </a>
+                <a href="{{ route('admin.dashboard.export', ['survey_id' => $activeSurvey->id]) }}" style="background: #10B981; color: #FFFFFF; text-decoration: none; padding: 0.55rem 1.1rem; border-radius: 8px; font-weight: 700; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.45rem; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25); transition: all 0.15s ease;" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10B981'">
+                    <i class="bi bi-file-earmark-excel-fill" style="font-size: 1rem;"></i> Unduh Excel (.xlsx)
+                </a>
+            </div>
+        </div>
         
         <!-- Filter & Search Bar -->
         <form action="{{ route('admin.dashboard') }}" method="GET" style="display: flex; gap: 0.6rem; margin-bottom: 1.25rem; flex-wrap: wrap;">
@@ -366,8 +603,11 @@
                         <th>Tenure</th>
                         <th>Departemen</th>
                         <th>Jabatan</th>
+                        <th style="min-width: 140px;">Mulai Dikerjakan</th>
+                        <th style="min-width: 140px;">Selesai Dikerjakan</th>
+                        <th style="min-width: 110px;">Lama Pengerjaan</th>
                         @foreach($questions as $q)
-                            @if($q->question_type === 'dual_rating' || $q->section === 'B')
+                            @if($q->question_type === 'dual_rating' || (empty($q->question_type) && $q->section === 'B'))
                                 <th title="{{ $q->question_text }}">Q{{ $q->question_number }} (H)</th>
                                 <th title="{{ $q->question_text }}">Q{{ $q->question_number }} (K)</th>
                             @else
@@ -378,7 +618,17 @@
                 </thead>
                 <tbody>
                     @forelse($responses as $index => $resp)
-                    @php $answersMap = $resp->answers->keyBy('question_id'); @endphp
+                    @php 
+                        $answersMap = $resp->answers->keyBy('question_id');
+                        $startedAt = $resp->started_at ?? $resp->created_at;
+                        $submittedAt = $resp->submitted_at ?? $resp->updated_at;
+                        $durationStr = '-';
+                        if ($startedAt && $submittedAt) {
+                            $diffSec = $startedAt->diffInSeconds($submittedAt);
+                            $minVal = round($diffSec / 60, 1);
+                            $durationStr = ($minVal < 1 ? '< 1' : $minVal) . ' Menit';
+                        }
+                    @endphp
                     <tr>
                         <td>{{ $responses->firstItem() + $index }}</td>
                         <td>{{ $resp->nik ?? '-' }}</td>
@@ -390,15 +640,30 @@
                         <td>{{ $resp->tenure ?? '-' }}</td>
                         <td><span style="font-weight: 600; background: #EFF6FF; color: #1D4ED8; padding: 0.15rem 0.4rem; border-radius: 4px;">{{ $resp->department ?? '-' }}</span></td>
                         <td>{{ $resp->position ?? '-' }}</td>
+                        <td style="font-size: 0.775rem; color: #475569; white-space: nowrap;">
+                            <i class="bi bi-clock-history" style="color: #3B82F6;"></i> {{ $startedAt ? $startedAt->format('d/m/Y ; H:i') : '-' }}
+                        </td>
+                        <td style="font-size: 0.775rem; color: #475569; white-space: nowrap;">
+                            <i class="bi bi-check-circle" style="color: #10B981;"></i> {{ $submittedAt ? $submittedAt->format('d/m/Y ; H:i') : '-' }}
+                        </td>
+                        <td style="text-align: center; white-space: nowrap;">
+                            <span style="font-size: 0.75rem; font-weight: 700; color: #0369A1; background: #E0F2FE; padding: 0.2rem 0.5rem; border-radius: 6px; display: inline-block;">
+                                {{ $durationStr }}
+                            </span>
+                        </td>
 
                         @foreach($questions as $q)
                             @php $ans = $answersMap->get($q->id); @endphp
-                            @if($q->question_type === 'dual_rating' || $q->section === 'B')
+                            @if($q->question_type === 'dual_rating' || (empty($q->question_type) && $q->section === 'B'))
                                 <td style="text-align: center; color: #2563EB; font-weight: 700;">
                                     {{ $ans ? $ans->expectation_score : '-' }}
                                 </td>
                                 <td style="text-align: center; font-weight: 700; color: {{ ($ans && $ans->reality_score <= 2) ? '#DC2626' : '#16A34A' }}; background: {{ ($ans && $ans->reality_score <= 2) ? '#FEE2E2' : 'transparent' }};">
                                     {{ $ans ? $ans->reality_score : '-' }}
+                                </td>
+                            @elseif($q->question_type === 'multiple_choice')
+                                <td style="text-align: center; font-size: 0.825rem; font-weight: 600; color: #1E293B;" title="{{ $ans ? $ans->text_answer : '' }}">
+                                    {{ $ans ? ($ans->text_answer ?? '-') : '-' }}
                                 </td>
                             @elseif($q->question_type === 'essay')
                                 <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;" title="{{ $ans ? $ans->text_answer : '' }}">
@@ -413,7 +678,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="{{ 10 + $questions->count() }}" style="text-align: center; padding: 2rem; color: #64748B;">
+                        <td colspan="{{ 13 + $questions->count() }}" style="text-align: center; padding: 2rem; color: #64748B;">
                             Belum ada respon data survei yang masuk.
                         </td>
                     </tr>
@@ -561,71 +826,150 @@
     <!-- SUBMENU 4: FEEDBACK DESKRIPTIF & ALASAN -->
     @if($tab == 'descriptive_reasons')
     <div class="card-panel">
-        <h3 style="font-size: 1.1rem; font-weight: 700; color: #0F172A; margin-bottom: 0.75rem;">
-            4. Rekapitulasi Alasan Nilai Rendah & Masukan Uraian
-        </h3>
-        <p style="color: #64748B; font-size: 0.85rem; margin-bottom: 1.5rem;">
-            Catatan alasan yang wajib diisi responden saat memilih nilai kenyataan 1 atau 2, serta jawaban terbuka lainnya.
-        </p>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
+            <div>
+                <h3 style="font-size: 1.15rem; font-weight: 800; color: #0F172A; margin: 0;">
+                    4. Rekapitulasi Feedback & Uraian Per Butir Pertanyaan
+                </h3>
+                <p style="color: #64748B; font-size: 0.825rem; margin: 0.25rem 0 0 0;">
+                    Daftar masukan, alasan skor rendah, dan uraian terbuka responden yang dikelompokkan per butir pertanyaan serta dihitung frekuensi kesamaan keyword/poin masukan.
+                </p>
+            </div>
+            <div style="background: #EFF6FF; border: 1px solid #BFDBFE; color: #1E40AF; padding: 0.45rem 0.85rem; border-radius: 8px; font-size: 0.8rem; font-weight: 700; display: inline-flex; align-items: center; gap: 0.4rem;">
+                <i class="bi bi-chat-square-text-fill"></i> {{ count($feedbackByQuestion) }} Butir Pertanyaan Memiliki Feedback
+            </div>
+        </div>
 
-        <!-- Low Score Reasons Feed -->
-        <h4 style="font-size: 0.9rem; font-weight: 800; color: #B91C1C; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.4rem;">
-            <i class="bi bi-exclamation-triangle-fill"></i> Alasan Khusus Nilai Rendah (Skor &le; 2)
-        </h4>
-
-        <div style="display: grid; gap: 0.75rem; margin-bottom: 1.75rem;">
-            @forelse($lowScoreReasons as $item)
-            <div style="background: #FFF5F5; border: 1px solid #FECACA; border-radius: 10px; padding: 0.85rem 1rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; flex-wrap: wrap; gap: 0.25rem;">
-                    <div>
-                        <span style="font-weight: 700; font-size: 0.85rem; color: #991B1B;">
-                            {{ $item->question?->indicator_title ?? 'Q' . $item->question?->question_number }}
+        @forelse($feedbackByQuestion as $index => $fb)
+        @php
+            $q = $fb['question'];
+            $indicator = $q->indicator_title ?? $q->dimensionName ?? ('Bagian ' . ($q->section ?? 'B'));
+        @endphp
+        <div class="feedback-q-card">
+            <!-- Question Header Card -->
+            <div class="feedback-q-header">
+                <div style="flex: 1; min-width: 260px;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem; flex-wrap: wrap;">
+                        <span style="background: var(--color-navy-primary); color: #FFFFFF; font-weight: 800; font-size: 0.75rem; padding: 0.2rem 0.55rem; border-radius: 6px;">
+                            Q{{ $q->question_number }}
                         </span>
-                        <span style="font-size: 0.75rem; color: #7F1D1D; margin-left: 0.35rem;">
-                            (Kenyataan: <b>{{ $item->reality_score }}</b>, Harapan: <b>{{ $item->expectation_score }}</b>)
+                        <span style="background: #F1F5F9; color: #475569; font-weight: 700; font-size: 0.75rem; padding: 0.2rem 0.55rem; border-radius: 6px; border: 1px solid #E2E8F0;">
+                            {{ $indicator }}
+                        </span>
+                        <span style="font-size: 0.75rem; color: #64748B;">
+                            Tipe: <b>{{ ucfirst(str_replace('_', ' ', $q->question_type ?? 'Rating')) }}</b>
                         </span>
                     </div>
-                    <span style="font-size: 0.75rem; color: #64748B;">
-                        {{ $item->response?->department ?? 'Umum' }} &bull; {{ $item->response?->position ?? 'Pegawai' }}
-                    </span>
+                    <div style="font-size: 0.925rem; font-weight: 700; color: #1E293B; line-height: 1.4;">
+                        {{ $q->question_text }}
+                    </div>
                 </div>
-                <div style="font-size: 0.85rem; color: #1E293B; line-height: 1.45; font-style: italic;">
-                    &ldquo;{{ $item->reason_text }}&rdquo;
-                </div>
-            </div>
-            @empty
-            <div style="padding: 1.5rem; text-align: center; color: #64748B; background: #F8FAFC; border-radius: 8px; font-size: 0.85rem;">
-                Belum ada catatan alasan nilai rendah.
-            </div>
-            @endforelse
-        </div>
 
-        <!-- General Essay Feed -->
-        <h4 style="font-size: 0.9rem; font-weight: 800; color: #4338CA; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.4rem;">
-            <i class="bi bi-chat-quote-fill"></i> Masukan / Uraian Terbuka Responden
-        </h4>
+                <div style="text-align: right; display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0;">
+                    <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 0.45rem 0.75rem; border-radius: 8px; text-align: center;">
+                        <span style="display: block; font-size: 0.675rem; color: #64748B; font-weight: 600; text-transform: uppercase;">Total Masukan</span>
+                        <span style="font-size: 1.05rem; font-weight: 800; color: var(--color-navy-primary);">{{ $fb['total_feedback'] }}</span>
+                    </div>
+                </div>
+            </div>
 
-        <div style="display: grid; gap: 0.75rem;">
-            @forelse($essayAnswers as $item)
-            <div style="background: #EEF2FF; border: 1px solid #C7D2FE; border-radius: 10px; padding: 0.85rem 1rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; flex-wrap: wrap; gap: 0.25rem;">
-                    <span style="font-weight: 700; font-size: 0.85rem; color: #3730A3;">
-                        {{ $item->question?->indicator_title ?? 'Uraian Pertanyaan' }}
+            <!-- Top Keywords Summary Bar (if available) -->
+            @if(!empty($fb['top_keywords']))
+            <div style="background: #FDFEFE; border-bottom: 1px dashed #E2E8F0; padding: 0.6rem 1.25rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                <span style="font-size: 0.75rem; font-weight: 700; color: #64748B; display: inline-flex; align-items: center; gap: 0.3rem;">
+                    <i class="bi bi-tags-fill" style="color: #3B82F6;"></i> Keyword Terbanyak:
+                </span>
+                @foreach($fb['top_keywords'] as $kw => $kwCount)
+                    <span style="font-size: 0.75rem; background: #EFF6FF; color: #1E40AF; border: 1px solid #DBEAFE; padding: 0.15rem 0.5rem; border-radius: 12px; font-weight: 600;">
+                        {{ $kw }} <b style="color: #2563EB;">({{ $kwCount }}x)</b>
                     </span>
-                    <span style="font-size: 0.75rem; color: #64748B;">
-                        {{ $item->response?->department ?? 'Umum' }} &bull; {{ $item->response?->position ?? 'Pegawai' }}
-                    </span>
-                </div>
-                <div style="font-size: 0.85rem; color: #1E293B; line-height: 1.45;">
-                    &ldquo;{{ $item->text_answer }}&rdquo;
-                </div>
+                @endforeach
             </div>
-            @empty
-            <div style="padding: 1.5rem; text-align: center; color: #64748B; background: #F8FAFC; border-radius: 8px; font-size: 0.85rem;">
-                Belum ada jawaban uraian terbuka.
+            @endif
+
+            <!-- Table of Grouped Feedback with Total Column -->
+            <div style="overflow-x: auto;">
+                <table class="feedback-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 45px; text-align: center;">No</th>
+                            <th>Poin Masukan / Uraian Responden</th>
+                            <th style="min-width: 170px;">Departemen Terkait</th>
+                            <th style="width: 120px; text-align: center; white-space: nowrap;">Total (Jumlah)</th>
+                            <th style="min-width: 190px;">Rincian Responden</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($fb['grouped_items'] as $itemIdx => $item)
+                        <tr>
+                            <td style="text-align: center; font-weight: 700; color: #64748B;">
+                                {{ $itemIdx + 1 }}
+                            </td>
+                            <td>
+                                <div style="font-size: 0.875rem; font-weight: 600; color: #1E293B; line-height: 1.45;">
+                                    &ldquo;{{ $item['sample_text'] }}&rdquo;
+                                </div>
+                                @if(!empty($item['scores']))
+                                    <div style="margin-top: 0.35rem; font-size: 0.725rem; color: #64748B;">
+                                        Skor Kenyataan Terkait: 
+                                        @foreach($item['scores'] as $sc)
+                                            <span style="background: {{ $sc <= 2 ? '#FEE2E2' : '#DCFCE7' }}; color: {{ $sc <= 2 ? '#B91C1C' : '#15803D' }}; padding: 0.1rem 0.35rem; border-radius: 4px; font-weight: 700; font-size: 0.7rem; margin-right: 2px;">
+                                                {{ $sc }}
+                                            </span>
+                                        @endforeach
+                                    </div>
+                                @endif
+                            </td>
+                            <td>
+                                <div style="display: flex; flex-wrap: wrap; gap: 0.3rem;">
+                                    @foreach($item['departments'] as $dept)
+                                        <span style="background: #F1F5F9; color: #334155; border: 1px solid #E2E8F0; font-size: 0.75rem; font-weight: 600; padding: 0.15rem 0.45rem; border-radius: 4px;">
+                                            {{ $dept }}
+                                        </span>
+                                    @endforeach
+                                    @if(empty($item['departments']))
+                                        <span style="color: #94A3B8; font-size: 0.75rem;">-</span>
+                                    @endif
+                                </div>
+                            </td>
+                            <td style="text-align: center; vertical-align: middle;">
+                                <span class="badge-count-total {{ $item['total'] > 1 ? 'high-freq' : '' }}" title="{{ $item['total'] }} responden menyampaikan poin/keyword serupa">
+                                    <i class="bi {{ $item['total'] > 1 ? 'bi-fire' : 'bi-person-fill' }}"></i>
+                                    {{ $item['total'] }}x
+                                </span>
+                            </td>
+                            <td>
+                                <div style="font-size: 0.775rem; color: #475569; display: flex; flex-direction: column; gap: 0.25rem;">
+                                    @foreach(array_slice($item['responses'], 0, 3) as $respDetail)
+                                        <div>
+                                            <b style="color: #1E293B;">{{ $respDetail['name'] }}</b> 
+                                            <span style="color: #64748B;">({{ $respDetail['dept'] }} &bull; {{ $respDetail['pos'] }})</span>
+                                        </div>
+                                    @endforeach
+                                    @if(count($item['responses']) > 3)
+                                        <div style="font-size: 0.725rem; color: #2563EB; font-weight: 600;">
+                                            +{{ count($item['responses']) - 3 }} responden lainnya
+                                        </div>
+                                    @endif
+                                </div>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
             </div>
-            @endforelse
         </div>
+        @empty
+        <div style="background: #FFFFFF; border: 1px dashed #CBD5E1; border-radius: 12px; padding: 3rem 1.5rem; text-align: center; color: #64748B;">
+            <i class="bi bi-chat-left-dots" style="font-size: 2.5rem; color: #94A3B8; display: block; margin-bottom: 0.75rem;"></i>
+            <h4 style="font-size: 1.05rem; font-weight: 700; color: #1E293B; margin-bottom: 0.35rem;">
+                Belum Ada Masukan Feedback atau Uraian
+            </h4>
+            <p style="font-size: 0.85rem; margin: 0;">
+                Responden belum mengisi uraian atau catatan alasan nilai pada edisi survei ini.
+            </p>
+        </div>
+        @endforelse
     </div>
     @endif
 

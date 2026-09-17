@@ -27,7 +27,8 @@ class AppServiceProvider extends ServiceProvider
 
         // Share currently active surveys with sidebar in app layout
         View::composer('layouts.app', function ($view) {
-            $activeSurveys = Survey::where('is_active', true)
+            $activeSurveys = Survey::unarchived()
+                ->where('is_active', true)
                 ->orderBy('id', 'asc')
                 ->get()
                 ->filter(function ($survey) {

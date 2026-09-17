@@ -9,18 +9,14 @@ class HomeController extends Controller
 {
     public function index()
     {
-        $user = auth()->user();
-
-        if ($user && $user->isAdmin()) {
-            $surveys = Survey::with(['activePeriod', 'responses'])->get();
-        } else {
-            $surveys = Survey::where('is_active', true)
-                ->with(['activePeriod', 'responses'])
-                ->get()
-                ->filter(function ($survey) {
-                    return $survey->isWithinActiveDate();
-                });
-        }
+        $surveys = Survey::where('is_archived', false)
+            ->where('is_active', true)
+            ->with(['activePeriod', 'responses', 'categoryModel'])
+            ->orderBy('id', 'desc')
+            ->get()
+            ->filter(function ($survey) {
+                return $survey->isWithinActiveDate();
+            });
 
         return view('home.index', compact('surveys'));
     }

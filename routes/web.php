@@ -6,6 +6,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\SurveyFormController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Admin\SurveyManagementController;
+use App\Http\Controllers\Admin\SurveyCategoryController;
 use App\Http\Controllers\Admin\DimensionController;
 use App\Http\Controllers\Admin\QuestionBankController;
 
@@ -28,9 +29,16 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('admin')->name('admin.')->group(function () {
         // Analytics Dashboard
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-        Route::get('/dashboard/export', [DashboardController::class, 'exportCsv'])->name('dashboard.export');
+        Route::get('/dashboard/export', [DashboardController::class, 'exportXlsx'])->name('dashboard.export');
 
-        // Survey Management & Active Period
+        // Survey Categories CRUD
+        Route::get('/survey-categories', [SurveyCategoryController::class, 'index'])->name('survey-categories.index');
+        Route::post('/survey-categories', [SurveyCategoryController::class, 'store'])->name('survey-categories.store');
+        Route::put('/survey-categories/{id}', [SurveyCategoryController::class, 'update'])->name('survey-categories.update');
+        Route::delete('/survey-categories/{id}', [SurveyCategoryController::class, 'destroy'])->name('survey-categories.destroy');
+        Route::post('/survey-categories/{id}/toggle', [SurveyCategoryController::class, 'toggleStatus'])->name('survey-categories.toggle');
+
+        // Survey Management, Active & Archive
         Route::get('/surveys', [SurveyManagementController::class, 'index'])->name('surveys.index');
         Route::get('/surveys/create', [SurveyManagementController::class, 'create'])->name('surveys.create');
         Route::post('/surveys', [SurveyManagementController::class, 'store'])->name('surveys.store');
@@ -38,6 +46,8 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/surveys/{id}', [SurveyManagementController::class, 'update'])->name('surveys.update');
         Route::delete('/surveys/{id}', [SurveyManagementController::class, 'destroy'])->name('surveys.destroy');
         Route::post('/surveys/{id}/toggle', [SurveyManagementController::class, 'toggleStatus'])->name('surveys.toggle');
+        Route::post('/surveys/{id}/archive', [SurveyManagementController::class, 'archive'])->name('surveys.archive');
+        Route::post('/surveys/{id}/unarchive', [SurveyManagementController::class, 'unarchive'])->name('surveys.unarchive');
 
         // Survey Question Builder (add/edit/import/delete questions per survey)
         Route::get('/surveys/{id}/questions', [SurveyManagementController::class, 'questions'])->name('surveys.questions');
@@ -46,7 +56,7 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/surveys/{id}/questions/{questionId}', [SurveyManagementController::class, 'updateQuestion'])->name('surveys.questions.update');
         Route::delete('/surveys/{id}/questions/{questionId}', [SurveyManagementController::class, 'destroyQuestion'])->name('surveys.questions.destroy');
 
-        // Dimensions / Categories Management
+        // Dimensions / Question Categories Management
         Route::get('/dimensions', [DimensionController::class, 'index'])->name('dimensions.index');
         Route::post('/dimensions', [DimensionController::class, 'store'])->name('dimensions.store');
         Route::put('/dimensions/{id}', [DimensionController::class, 'update'])->name('dimensions.update');
