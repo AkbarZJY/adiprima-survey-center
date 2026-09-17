@@ -485,6 +485,7 @@
 
     <form id="surveyForm" action="{{ route('survey.store', $survey->slug) }}" method="POST">
         @csrf
+        <input type="hidden" name="started_at" value="{{ now() }}">
 
         <!-- STEP 1: PROLOG -->
         <div class="form-card step-panel" id="step1">
@@ -643,49 +644,111 @@
                         </div>
                     </div>
 
-                    <!-- 1. Sub-card Tingkat Harapan -->
-                    <div class="sub-rating-card expectation-card">
-                        <label style="font-size: 0.8rem; font-weight: 800; color: #1E40AF; display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.4rem;">
-                            <i class="bi bi-star-fill" style="color: #2563EB;"></i> a) Tingkat Harapan (Expectation):
-                        </label>
-                        <div class="scale-options">
-                            @foreach([1 => 'Sangat Tidak Diharapkan', 2 => 'Tidak Diharapkan', 3 => 'Diharapkan', 4 => 'Sangat Diharapkan'] as $val => $txt)
-                            <label class="scale-btn">
-                                <input type="radio" name="expectation_{{ $question->id }}" value="{{ $val }}" required>
-                                <span class="scale-label">
-                                    <span class="scale-num">{{ $val }}</span>
-                                    <span class="scale-text">{{ $txt }}</span>
-                                </span>
+                    @if($question->question_type === 'multiple_choice')
+                        <div class="mcq-options" style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
+                            @php
+                                $options = is_array($question->options_json) ? $question->options_json : json_decode($question->options_json ?? '[]', true);
+                                if (empty($options)) {
+                                    $options = ['Sangat Baik', 'Baik', 'Cukup', 'Kurang'];
+                                }
+                            @endphp
+                            @foreach($options as $optIndex => $optText)
+                            <label style="display: flex; align-items: center; gap: 0.65rem; padding: 0.65rem 0.85rem; border: 1.5px solid #E2E8F0; border-radius: 8px; cursor: pointer; transition: all 0.2s; background: #FFFFFF;">
+                                <input type="radio" name="choice_{{ $question->id }}" value="{{ $optText }}" required style="accent-color: var(--color-navy-primary); width: 16px; height: 16px;">
+                                <span style="font-size: 0.875rem; color: #1E293B; font-weight: 600;">{{ $optText }}</span>
                             </label>
                             @endforeach
                         </div>
-                    </div>
 
-                    <!-- 2. Sub-card Tingkat Kenyataan -->
-                    <div class="sub-rating-card reality-card">
-                        <label style="font-size: 0.8rem; font-weight: 800; color: var(--color-navy-primary); display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.4rem;">
-                            <i class="bi bi-check2-circle" style="color: #10B981;"></i> b) Tingkat Kenyataan (Perception):
-                        </label>
-                        <div class="scale-options">
-                            @foreach([1 => 'Sangat Tidak Setuju', 2 => 'Tidak Setuju', 3 => 'Setuju', 4 => 'Sangat Setuju'] as $val => $txt)
-                            <label class="scale-btn">
-                                <input type="radio" name="reality_{{ $question->id }}" value="{{ $val }}" onchange="handleRealityChange({{ $question->id }}, {{ $val }})" required>
-                                <span class="scale-label">
-                                    <span class="scale-num">{{ $val }}</span>
-                                    <span class="scale-text">{{ $txt }}</span>
-                                </span>
+                        @if($question->require_reason_on_low_score)
+                        <div class="reason-box" id="reason_box_{{ $question->id }}" style="display: block; margin-top: 0.75rem;">
+                            <label style="font-size: 0.8rem; font-weight: 700; color: #475569; display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.35rem;">
+                                <i class="bi bi-chat-left-text-fill" style="color: #2563EB;"></i> Keterangan / Alasan Tambahan (Opsional):
                             </label>
-                            @endforeach
+                            <textarea name="reason_{{ $question->id }}" id="reason_text_{{ $question->id }}" rows="2" placeholder="Tuliskan keterangan atau alasan pendukung jawaban Anda di sini..."></textarea>
                         </div>
-                    </div>
+                        @endif
 
-                    <!-- Dynamic Reason Box -->
-                    <div class="reason-box" id="reason_box_{{ $question->id }}">
-                        <label style="font-size: 0.8rem; font-weight: 800; color: #991B1B; display: flex; align-items: center; gap: 0.35rem; line-height: 1.3;">
-                            <i class="bi bi-exclamation-triangle-fill"></i> Alasan (Wajib diisi karena skor Kenyataan bernilai 1 atau 2):
-                        </label>
-                        <textarea name="reason_{{ $question->id }}" id="reason_text_{{ $question->id }}" rows="2" placeholder="Tuliskan masukan atau alasan spesifik Anda di sini..."></textarea>
-                    </div>
+                    @elseif($question->question_type === 'single_rating')
+                        <div class="sub-rating-card reality-card">
+                            <label style="font-size: 0.8rem; font-weight: 800; color: var(--color-navy-primary); display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.4rem;">
+                                <i class="bi bi-star-fill" style="color: #10B981;"></i> Penilaian (Skala 1 - {{ $question->rating_scale ?? 4 }}):
+                            </label>
+                            <div class="scale-options">
+                                @php $scaleMax = $question->rating_scale ?? 4; @endphp
+                                @for($s = 1; $s <= $scaleMax; $s++)
+                                <label class="scale-btn">
+                                    <input type="radio" name="reality_{{ $question->id }}" value="{{ $s }}" @if($question->require_reason_on_low_score) onchange="handleRealityChange({{ $question->id }}, {{ $s }}, {{ $question->low_score_threshold ?? 2 }})" @endif required>
+                                    <span class="scale-label">
+                                        <span class="scale-num">{{ $s }}</span>
+                                    </span>
+                                </label>
+                                @endfor
+                            </div>
+                        </div>
+
+                        @if($question->require_reason_on_low_score)
+                        <div class="reason-box" id="reason_box_{{ $question->id }}" style="display: none;">
+                            <label style="font-size: 0.8rem; font-weight: 800; color: #991B1B; display: flex; align-items: center; gap: 0.35rem; line-height: 1.3;">
+                                <i class="bi bi-exclamation-triangle-fill"></i> Alasan (Wajib diisi jika skor &le; {{ $question->low_score_threshold ?? 2 }}):
+                            </label>
+                            <textarea name="reason_{{ $question->id }}" id="reason_text_{{ $question->id }}" rows="2" placeholder="Tuliskan masukan atau alasan spesifik Anda di sini..."></textarea>
+                        </div>
+                        @endif
+
+                    @elseif($question->question_type === 'essay')
+                        <div style="margin-top: 0.5rem;">
+                            <textarea name="essay_{{ $question->id }}" id="essay_text_{{ $question->id }}" rows="3" style="width:100%; padding:0.75rem; border:1.5px solid #CBD5E1; border-radius:10px; font-family:inherit; font-size:0.875rem;" placeholder="Tuliskan jawaban atau tanggapan Anda di sini..." required></textarea>
+                        </div>
+
+                    @else
+                        <!-- Dual Rating (Default Section B) -->
+                        <!-- 1. Sub-card Tingkat Harapan -->
+                        <div class="sub-rating-card expectation-card">
+                            <label style="font-size: 0.8rem; font-weight: 800; color: #1E40AF; display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.4rem;">
+                                <i class="bi bi-star-fill" style="color: #2563EB;"></i> a) Tingkat Harapan (Expectation):
+                            </label>
+                            <div class="scale-options">
+                                @foreach([1 => 'Sangat Tidak Diharapkan', 2 => 'Tidak Diharapkan', 3 => 'Diharapkan', 4 => 'Sangat Diharapkan'] as $val => $txt)
+                                <label class="scale-btn">
+                                    <input type="radio" name="expectation_{{ $question->id }}" value="{{ $val }}" required>
+                                    <span class="scale-label">
+                                        <span class="scale-num">{{ $val }}</span>
+                                        <span class="scale-text">{{ $txt }}</span>
+                                    </span>
+                                </label>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        <!-- 2. Sub-card Tingkat Kenyataan -->
+                        <div class="sub-rating-card reality-card">
+                            <label style="font-size: 0.8rem; font-weight: 800; color: var(--color-navy-primary); display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.4rem;">
+                                <i class="bi bi-check2-circle" style="color: #10B981;"></i> b) Tingkat Kenyataan (Perception):
+                            </label>
+                            <div class="scale-options">
+                                @foreach([1 => 'Sangat Tidak Setuju', 2 => 'Tidak Setuju', 3 => 'Setuju', 4 => 'Sangat Setuju'] as $val => $txt)
+                                <label class="scale-btn">
+                                    <input type="radio" name="reality_{{ $question->id }}" value="{{ $val }}" @if($question->require_reason_on_low_score) onchange="handleRealityChange({{ $question->id }}, {{ $val }}, {{ $question->low_score_threshold ?? 2 }})" @endif required>
+                                    <span class="scale-label">
+                                        <span class="scale-num">{{ $val }}</span>
+                                        <span class="scale-text">{{ $txt }}</span>
+                                    </span>
+                                </label>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        @if($question->require_reason_on_low_score)
+                        <!-- Dynamic Reason Box -->
+                        <div class="reason-box" id="reason_box_{{ $question->id }}" style="display: none;">
+                            <label style="font-size: 0.8rem; font-weight: 800; color: #991B1B; display: flex; align-items: center; gap: 0.35rem; line-height: 1.3;">
+                                <i class="bi bi-exclamation-triangle-fill"></i> Alasan (Wajib diisi karena skor Kenyataan &le; {{ $question->low_score_threshold ?? 2 }}):
+                            </label>
+                            <textarea name="reason_{{ $question->id }}" id="reason_text_{{ $question->id }}" rows="2" placeholder="Tuliskan masukan atau alasan spesifik Anda di sini..."></textarea>
+                        </div>
+                        @endif
+                    @endif
                 </div>
             @endforeach
 
@@ -714,7 +777,7 @@
             </div>
 
             @foreach($sectionCQuestions as $question)
-                <div class="question-block">
+                <div class="question-block" id="q_block_{{ $question->id }}">
                     <div style="display: flex; gap: 0.6rem; margin-bottom: 0.75rem; align-items: flex-start;">
                         <span style="background: var(--color-navy-primary); color: #FFF; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 800; flex-shrink: 0; margin-top: 0.1rem;">
                             C{{ $question->question_number }}
@@ -724,7 +787,32 @@
                         </h4>
                     </div>
 
-                    @if($question->question_type === 'single_rating' || $question->question_number === 1)
+                    @if($question->question_type === 'multiple_choice')
+                        <div class="mcq-options" style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
+                            @php
+                                $options = is_array($question->options_json) ? $question->options_json : json_decode($question->options_json ?? '[]', true);
+                                if (empty($options)) {
+                                    $options = ['Sangat Baik', 'Baik', 'Cukup', 'Kurang'];
+                                }
+                            @endphp
+                            @foreach($options as $optIndex => $optText)
+                            <label style="display: flex; align-items: center; gap: 0.65rem; padding: 0.65rem 0.85rem; border: 1.5px solid #E2E8F0; border-radius: 8px; cursor: pointer; transition: all 0.2s; background: #FFFFFF;">
+                                <input type="radio" name="choice_{{ $question->id }}" value="{{ $optText }}" required style="accent-color: var(--color-navy-primary); width: 16px; height: 16px;">
+                                <span style="font-size: 0.875rem; color: #1E293B; font-weight: 600;">{{ $optText }}</span>
+                            </label>
+                            @endforeach
+                        </div>
+
+                        @if($question->require_reason_on_low_score)
+                        <div class="reason-box" id="reason_box_{{ $question->id }}" style="display: block; margin-top: 0.75rem;">
+                            <label style="font-size: 0.8rem; font-weight: 700; color: #475569; display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.35rem;">
+                                <i class="bi bi-chat-left-text-fill" style="color: #2563EB;"></i> Keterangan / Alasan Tambahan (Opsional):
+                            </label>
+                            <textarea name="reason_{{ $question->id }}" id="reason_text_{{ $question->id }}" rows="2" placeholder="Tuliskan keterangan atau alasan pendukung jawaban Anda di sini..."></textarea>
+                        </div>
+                        @endif
+
+                    @elseif($question->question_type === 'single_rating' || ($question->question_number === 1 && empty($question->question_type)))
                         <div class="scale-options">
                             @foreach([1 => '1 (Sangat Kecil)', 2 => '2 (Kecil)', 3 => '3 (Besar)', 4 => '4 (Sangat Besar)'] as $val => $txt)
                             <label class="scale-btn">
@@ -736,7 +824,7 @@
                             </label>
                             @endforeach
                         </div>
-                    @elseif($question->question_type === 'essay' || $question->question_number === 2)
+                    @elseif($question->question_type === 'essay' || ($question->question_number === 2 && empty($question->question_type)))
                         <div id="c2_container">
                             <textarea name="general_reason_{{ $question->id }}" id="general_reason_text" rows="3" style="width:100%; padding:0.75rem; border:1.5px solid #CBD5E1; border-radius:10px; font-family:inherit; font-size:0.875rem;" placeholder="Tuliskan pandangan atau saran perbaikan Anda di sini..."></textarea>
                         </div>
@@ -836,14 +924,16 @@
         }
     }
 
-    function handleRealityChange(qId, val) {
+    function handleRealityChange(qId, val, threshold = 2) {
         const reasonBox = document.getElementById('reason_box_' + qId);
         const reasonText = document.getElementById('reason_text_' + qId);
-        if (val <= 2) {
-            if (reasonBox) reasonBox.style.display = 'block';
+        if (!reasonBox) return;
+
+        if (val <= threshold) {
+            reasonBox.style.display = 'block';
             if (reasonText) reasonText.required = true;
         } else {
-            if (reasonBox) reasonBox.style.display = 'none';
+            reasonBox.style.display = 'none';
             if (reasonText) {
                 reasonText.required = false;
                 reasonText.value = '';
@@ -881,21 +971,43 @@
         for (let block of step3Blocks) {
             if (block.style.display === 'none') continue;
             
-            const expChecked = block.querySelector('input[name^="expectation_"]:checked');
-            const realChecked = block.querySelector('input[name^="reality_"]:checked');
+            const expInputs = block.querySelectorAll('input[name^="expectation_"]');
+            const realInputs = block.querySelectorAll('input[name^="reality_"]');
+            const choiceInputs = block.querySelectorAll('input[name^="choice_"]');
+            const essayInput = block.querySelector('textarea[name^="essay_"]');
             
-            if (!expChecked || !realChecked) {
-                alert('Silakan berikan penilaian Tingkat Harapan dan Tingkat Kenyataan untuk seluruh pertanyaan Bagian B.');
-                block.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                return false;
-            }
+            if (expInputs.length > 0 && realInputs.length > 0) {
+                const expChecked = block.querySelector('input[name^="expectation_"]:checked');
+                const realChecked = block.querySelector('input[name^="reality_"]:checked');
+                if (!expChecked || !realChecked) {
+                    alert('Silakan berikan penilaian Tingkat Harapan dan Tingkat Kenyataan untuk seluruh butir pertanyaan.');
+                    block.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    return false;
+                }
 
-            const qId = block.id.replace('q_block_', '');
-            const reasonText = document.getElementById('reason_text_' + qId);
-            if (realChecked.value <= 2 && (!reasonText || !reasonText.value.trim())) {
-                alert('Silakan isi kolom Alasan untuk pertanyaan dengan nilai Kenyataan 1 atau 2.');
-                if (reasonText) reasonText.focus();
-                return false;
+                const qId = block.id.replace('q_block_', '');
+                const reasonBox = document.getElementById('reason_box_' + qId);
+                const reasonText = document.getElementById('reason_text_' + qId);
+                if (reasonBox && reasonBox.style.display !== 'none') {
+                    if (!reasonText || !reasonText.value.trim()) {
+                        alert('Silakan isi kolom Alasan untuk pertanyaan dengan nilai yang memerlukan alasan.');
+                        if (reasonText) reasonText.focus();
+                        return false;
+                    }
+                }
+            } else if (choiceInputs.length > 0) {
+                const choiceChecked = block.querySelector('input[name^="choice_"]:checked');
+                if (!choiceChecked) {
+                    alert('Silakan pilih salah satu jawaban untuk pertanyaan pilihan ganda.');
+                    block.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    return false;
+                }
+            } else if (essayInput) {
+                if (!essayInput.value.trim()) {
+                    alert('Silakan lengkapi jawaban uraian Anda.');
+                    essayInput.focus();
+                    return false;
+                }
             }
         }
         return true;

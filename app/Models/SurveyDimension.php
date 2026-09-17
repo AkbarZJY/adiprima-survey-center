@@ -10,12 +10,23 @@ class SurveyDimension extends Model
     use HasFactory;
 
     protected $fillable = [
+        'survey_category_id',
         'name',
         'code',
         'description',
         'color',
         'order',
     ];
+
+    public function category()
+    {
+        return $this->belongsTo(SurveyCategory::class, 'survey_category_id');
+    }
+
+    public function scopeForCategory($query, $categoryId)
+    {
+        return $query->where('survey_category_id', $categoryId);
+    }
 
     public function questions()
     {

@@ -23,11 +23,13 @@ class SurveyResponse extends Model
         'department',
         'position',
         'submitted_at',
+        'started_at',
         'ip_address',
     ];
 
     protected $casts = [
         'submitted_at' => 'datetime',
+        'started_at' => 'datetime',
     ];
 
     public function survey()

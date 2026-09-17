@@ -14,18 +14,41 @@ class Survey extends Model
         'title',
         'slug',
         'category',
+        'survey_category_id',
         'description',
         'icon',
         'start_date',
         'end_date',
         'is_active',
+        'is_archived',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_archived' => 'boolean',
         'start_date' => 'date',
         'end_date' => 'date',
     ];
+
+    public function categoryModel()
+    {
+        return $this->belongsTo(SurveyCategory::class, 'survey_category_id');
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->where('is_archived', false)->where('is_active', true);
+    }
+
+    public function scopeArchived($query)
+    {
+        return $query->where('is_archived', true);
+    }
+
+    public function scopeUnarchived($query)
+    {
+        return $query->where('is_archived', false);
+    }
 
     public function periods()
     {

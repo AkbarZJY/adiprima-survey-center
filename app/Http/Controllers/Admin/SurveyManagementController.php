@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Survey;
+use App\Models\SurveyCategory;
 use App\Models\SurveyPeriod;
 use App\Models\SurveyDimension;
 use App\Models\QuestionTemplate;
@@ -14,19 +15,40 @@ use Carbon\Carbon;
 
 class SurveyManagementController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $surveys = Survey::withCount(['questions', 'responses'])
-            ->with('activePeriod')
-            ->orderBy('id', 'desc')
-            ->get();
+        $tab = $request->get('tab', 'active'); // 'active' or 'archived'
+        $categoryFilter = $request->get('category');
 
-        return view('admin.surveys.index', compact('surveys'));
+        $activeCount = Survey::unarchived()->count();
+        $archivedCount = Survey::archived()->count();
+
+        $query = ($tab === 'archived') ? Survey::archived() : Survey::unarchived();
+
+        $query->withCount(['questions', 'responses'])
+            ->with(['activePeriod', 'categoryModel'])
+            ->orderBy('is_active', 'desc')
+            ->orderBy('id', 'desc');
+
+        if ($categoryFilter && $categoryFilter !== 'all') {
+            $query->where(function ($q) use ($categoryFilter) {
+                $q->where('category', $categoryFilter)
+                  ->orWhereHas('categoryModel', function ($sub) use ($categoryFilter) {
+                      $sub->where('slug', $categoryFilter)->orWhere('name', $categoryFilter);
+                  });
+            });
+        }
+
+        $surveys = $query->get();
+        $categories = SurveyCategory::orderBy('order')->orderBy('name')->get();
+
+        return view('admin.surveys.index', compact('surveys', 'tab', 'activeCount', 'archivedCount', 'categories', 'categoryFilter'));
     }
 
     public function create()
     {
-        return view('admin.surveys.create');
+        $categories = SurveyCategory::where('is_active', true)->orderBy('order')->orderBy('name')->get();
+        return view('admin.surveys.create', compact('categories'));
     }
 
     public function store(Request $request)
@@ -47,15 +69,27 @@ class SurveyManagementController extends Controller
             $slug .= '-' . ($count + 1);
         }
 
+        // Find or create SurveyCategory
+        $categoryModel = SurveyCategory::firstOrCreate(
+            ['name' => $request->category],
+            [
+                'slug' => Str::slug($request->category),
+                'icon' => $request->icon ?? 'bi-clipboard-data',
+                'is_active' => true,
+            ]
+        );
+
         $survey = Survey::create([
             'title' => $request->title,
             'slug' => $slug,
             'category' => $request->category,
+            'survey_category_id' => $categoryModel->id,
             'description' => $request->description,
             'icon' => $request->icon ?? 'bi-clipboard-data',
             'start_date' => $request->start_date,
             'end_date' => $request->end_date,
             'is_active' => $request->has('is_active'),
+            'is_archived' => false,
         ]);
 
         // Create initial survey period
@@ -72,8 +106,9 @@ class SurveyManagementController extends Controller
 
     public function edit($id)
     {
-        $survey = Survey::with('activePeriod')->findOrFail($id);
-        return view('admin.surveys.edit', compact('survey'));
+        $survey = Survey::with(['activePeriod', 'categoryModel'])->findOrFail($id);
+        $categories = SurveyCategory::where('is_active', true)->orderBy('order')->orderBy('name')->get();
+        return view('admin.surveys.edit', compact('survey', 'categories'));
     }
 
     public function update(Request $request, $id)
@@ -90,9 +125,19 @@ class SurveyManagementController extends Controller
             'is_active' => 'nullable|boolean',
         ]);
 
+        $categoryModel = SurveyCategory::firstOrCreate(
+            ['name' => $request->category],
+            [
+                'slug' => Str::slug($request->category),
+                'icon' => $request->icon ?? 'bi-clipboard-data',
+                'is_active' => true,
+            ]
+        );
+
         $survey->update([
             'title' => $request->title,
             'category' => $request->category,
+            'survey_category_id' => $categoryModel->id,
             'description' => $request->description,
             'icon' => $request->icon ?? $survey->icon,
             'start_date' => $request->start_date,
@@ -124,9 +169,10 @@ class SurveyManagementController extends Controller
     public function destroy($id)
     {
         $survey = Survey::findOrFail($id);
+        $title = $survey->title;
         $survey->delete();
 
-        return redirect()->route('admin.surveys.index')->with('success', 'Survei berhasil dihapus.');
+        return redirect()->route('admin.surveys.index')->with('success', "Survei '{$title}' dan seluruh datanya berhasil dihapus.");
     }
 
     public function toggleStatus($id)
@@ -140,7 +186,39 @@ class SurveyManagementController extends Controller
             $survey->activePeriod->save();
         }
 
-        return back()->with('success', 'Status survei berhasil diubah.');
+        return back()->with('success', 'Status aktif survei berhasil diubah.');
+    }
+
+    public function archive($id)
+    {
+        $survey = Survey::findOrFail($id);
+        $survey->is_archived = true;
+        $survey->is_active = false;
+        $survey->save();
+
+        if ($survey->activePeriod) {
+            $survey->activePeriod->is_active = false;
+            $survey->activePeriod->save();
+        }
+
+        return redirect()->route('admin.surveys.index', ['tab' => 'archived'])
+            ->with('success', "Survei '{$survey->title}' berhasil dipindahkan ke Arsip. Survei ditutup dan tidak lagi muncul di halaman beranda.");
+    }
+
+    public function unarchive($id)
+    {
+        $survey = Survey::findOrFail($id);
+        $survey->is_archived = false;
+        $survey->is_active = true;
+        $survey->save();
+
+        if ($survey->activePeriod) {
+            $survey->activePeriod->is_active = true;
+            $survey->activePeriod->save();
+        }
+
+        return redirect()->route('admin.surveys.index', ['tab' => 'active'])
+            ->with('success', "Survei '{$survey->title}' berhasil dipulihkan dari arsip dan kembali aktif.");
     }
 
     /**
@@ -148,14 +226,28 @@ class SurveyManagementController extends Controller
      */
     public function questions($id)
     {
-        $survey = Survey::with(['questions.dimensionModel', 'questions.template', 'activePeriod'])->findOrFail($id);
-        $dimensions = SurveyDimension::orderBy('order')->get();
-        $bankTemplates = QuestionTemplate::with('dimension')->orderBy('order')->get();
+        $survey = Survey::with(['questions.dimensionModel', 'questions.template', 'activePeriod', 'categoryModel'])->findOrFail($id);
+        
+        $categories = SurveyCategory::with(['dimensions' => function ($q) {
+            $q->orderBy('order')->orderBy('name');
+        }])->orderBy('order')->orderBy('name')->get();
+
+        // Dimensions for this survey's category (or all dimensions if none)
+        if ($survey->survey_category_id) {
+            $dimensions = SurveyDimension::where('survey_category_id', $survey->survey_category_id)
+                ->orderBy('order')
+                ->get();
+        } else {
+            $dimensions = SurveyDimension::orderBy('order')->get();
+        }
+
+        $allDimensions = SurveyDimension::with('category')->orderBy('order')->get();
+        $bankTemplates = QuestionTemplate::with(['dimension.category'])->orderBy('order')->get();
 
         // Existing questions mapped by dimension
         $questions = $survey->questions->sortBy('order');
 
-        return view('admin.surveys.questions', compact('survey', 'dimensions', 'bankTemplates', 'questions'));
+        return view('admin.surveys.questions', compact('survey', 'dimensions', 'allDimensions', 'categories', 'bankTemplates', 'questions'));
     }
 
     /**
@@ -176,6 +268,7 @@ class SurveyManagementController extends Controller
             'low_score_threshold' => 'nullable|numeric|min:1|max:10',
             'applies_to_employment_status' => 'nullable|string|max:100',
             'applies_to_positions' => 'nullable|string|max:100',
+            'applies_to_gender' => 'nullable|string|max:50',
             'order' => 'nullable|numeric',
         ]);
 
@@ -184,9 +277,14 @@ class SurveyManagementController extends Controller
         $maxOrder = SurveyQuestion::where('survey_id', $survey->id)->max('order') ?? 0;
 
         $optionsJson = null;
-        if ($request->question_type === 'multiple_choice' && $request->options_text) {
-            $options = array_filter(array_map('trim', explode("\n", $request->options_text)));
-            $optionsJson = array_values($options);
+        if ($request->question_type === 'multiple_choice') {
+            if ($request->has('options') && is_array($request->options)) {
+                $options = array_filter(array_map('trim', $request->options), fn($val) => $val !== '');
+                $optionsJson = array_values($options);
+            } elseif ($request->options_text) {
+                $options = array_filter(array_map('trim', explode("\n", $request->options_text)), fn($val) => $val !== '');
+                $optionsJson = array_values($options);
+            }
         }
 
         SurveyQuestion::create([
@@ -204,6 +302,7 @@ class SurveyManagementController extends Controller
             'options_json' => $optionsJson,
             'applies_to_employment_status' => $request->applies_to_employment_status,
             'applies_to_positions' => $request->applies_to_positions,
+            'applies_to_gender' => $request->applies_to_gender,
             'order' => $request->order ?? ($maxOrder + 1),
         ]);
 
@@ -248,6 +347,7 @@ class SurveyManagementController extends Controller
                 'options_json' => $template->options_json,
                 'applies_to_employment_status' => $template->applies_to_employment_status,
                 'applies_to_positions' => $template->applies_to_positions,
+                'applies_to_gender' => $template->applies_to_gender,
                 'order' => $maxOrder,
             ]);
             $count++;
@@ -276,15 +376,21 @@ class SurveyManagementController extends Controller
             'low_score_threshold' => 'nullable|numeric|min:1|max:10',
             'applies_to_employment_status' => 'nullable|string|max:100',
             'applies_to_positions' => 'nullable|string|max:100',
+            'applies_to_gender' => 'nullable|string|max:50',
             'order' => 'nullable|numeric',
         ]);
 
         $dimension = $request->dimension_id ? SurveyDimension::find($request->dimension_id) : null;
 
         $optionsJson = $question->options_json;
-        if ($request->question_type === 'multiple_choice' && $request->options_text) {
-            $options = array_filter(array_map('trim', explode("\n", $request->options_text)));
-            $optionsJson = array_values($options);
+        if ($request->question_type === 'multiple_choice') {
+            if ($request->has('options') && is_array($request->options)) {
+                $options = array_filter(array_map('trim', $request->options), fn($val) => $val !== '');
+                $optionsJson = array_values($options);
+            } elseif ($request->options_text) {
+                $options = array_filter(array_map('trim', explode("\n", $request->options_text)), fn($val) => $val !== '');
+                $optionsJson = array_values($options);
+            }
         }
 
         $question->update([
@@ -301,6 +407,7 @@ class SurveyManagementController extends Controller
             'options_json' => $optionsJson,
             'applies_to_employment_status' => $request->applies_to_employment_status,
             'applies_to_positions' => $request->applies_to_positions,
+            'applies_to_gender' => $request->applies_to_gender,
             'order' => $request->order ?? $question->order,
         ]);
 

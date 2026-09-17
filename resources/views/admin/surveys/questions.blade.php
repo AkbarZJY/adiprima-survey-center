@@ -179,9 +179,9 @@
                     </td>
                     <td style="padding: 0.75rem 1rem; color: #1E293B; line-height: 1.45;">
                         {{ $q->question_text }}
-                        @if($q->applies_to_employment_status || $q->applies_to_positions)
+                        @if($q->applies_to_employment_status || $q->applies_to_positions || $q->applies_to_gender)
                             <div style="margin-top: 0.25rem; font-size: 0.75rem; color: #D97706; font-weight: 600;">
-                                <i class="bi bi-person-fill-lock"></i> Khusus: {{ $q->applies_to_employment_status ?? '-' }} / {{ $q->applies_to_positions ?? '-' }}
+                                <i class="bi bi-person-fill-lock"></i> Khusus: {{ $q->applies_to_employment_status ?? '-' }} / {{ $q->applies_to_positions ?? '-' }} / {{ $q->applies_to_gender ?? 'Semua Gender' }}
                             </div>
                         @endif
                     </td>
@@ -205,12 +205,17 @@
                         @endif
                     </td>
                     <td style="padding: 0.75rem 1rem;">
-                        @if($q->require_reason_on_low_score || $q->section === 'B')
+                        @if($q->require_reason_on_low_score)
                             <span style="display: inline-flex; align-items: center; gap: 0.3rem; background: #FEF3C7; color: #92400E; font-size: 0.725rem; font-weight: 700; padding: 0.2rem 0.4rem; border-radius: 4px;">
-                                <i class="bi bi-exclamation-circle-fill" style="color: #D97706;"></i> Wajib jika &le; {{ $q->low_score_threshold ?? 2 }}
+                                <i class="bi bi-check-circle-fill" style="color: #D97706;"></i>
+                                @if($q->question_type === 'multiple_choice')
+                                    Deskriptif Aktif
+                                @else
+                                    Wajib jika &le; {{ $q->low_score_threshold ?? 2 }}
+                                @endif
                             </span>
                         @else
-                            <span style="color: #94A3B8; font-size: 0.75rem;">-</span>
+                            <span style="color: #94A3B8; font-size: 0.75rem;">Nonaktif</span>
                         @endif
                     </td>
                     <td style="padding: 0.75rem 1rem; text-align: center;">
@@ -253,16 +258,16 @@
 </div>
 @endforelse
 
-<!-- Modal Import from Question Bank -->
+<!-- Modal Import Bank Soal -->
 <div id="importBankModal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(4px); padding: 1rem;">
-    <div class="modal-box" style="max-width: 720px;">
+    <div class="modal-box" style="max-width: 750px; max-height: 88vh; display: flex; flex-direction: column;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
             <div>
                 <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--color-navy-primary); margin: 0;">
-                    Import Template dari Bank Soal
+                    Import dari Bank Soal
                 </h3>
-                <p style="color: #64748B; font-size: 0.8rem; margin-top: 0.2rem;">
-                    Pilih butir pertanyaan yang ingin dimasukkan ke kuesioner ini.
+                <p style="font-size: 0.8rem; color: #64748B; margin: 0.15rem 0 0;">
+                    Pilih template pertanyaan dari Bank Soal sesuai kategori <b>{{ $survey->categoryModel?->name ?? $survey->category }}</b>.
                 </p>
             </div>
             <button onclick="closeModal('importBankModal')" style="background: none; border: none; font-size: 1.25rem; color: #94A3B8; cursor: pointer;">
@@ -270,56 +275,73 @@
             </button>
         </div>
 
-        <form action="{{ route('admin.surveys.questions.import', $survey->id) }}" method="POST">
+        <form action="{{ route('admin.surveys.questions.import', $survey->id) }}" method="POST" style="display: flex; flex-direction: column; height: 100%; overflow: hidden;">
             @csrf
             
-            <div style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; background: #F8FAFC; padding: 0.65rem 0.85rem; border-radius: 8px; flex-wrap: wrap; gap: 0.5rem;">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <label style="font-size: 0.8rem; font-weight: 700; color: #334155;">Bagian (Section):</label>
-                    <select name="section" style="padding: 0.35rem 0.55rem; border: 1px solid var(--color-border); border-radius: 6px; font-size: 0.8rem; background: #FFFFFF;">
-                        <option value="B">Bagian B (Dimensi Inti)</option>
-                        <option value="C">Bagian C (Pertanyaan Umum)</option>
-                        <option value="A">Bagian A (Tambahan)</option>
+            <!-- Category Filter and Target Section -->
+            <div style="margin-bottom: 0.75rem; display: flex; gap: 0.65rem; align-items: center; flex-wrap: wrap; background: #F8FAFC; padding: 0.75rem; border-radius: 8px; border: 1px solid #E2E8F0;">
+                <div style="flex: 1; min-width: 180px;">
+                    <label style="font-size: 0.75rem; font-weight: 700; color: #475569; display: block; margin-bottom: 0.2rem;">Filter Kategori Bank Soal:</label>
+                    <select id="importCategoryFilter" onchange="filterImportBankList()" style="width: 100%; padding: 0.4rem 0.65rem; border: 1px solid var(--color-border); border-radius: 6px; font-size: 0.8rem; font-weight: 600; background: #FFFFFF;">
+                        <option value="">-- Semua Kategori Bank Soal --</option>
+                        @foreach($categories as $cat)
+                            <option value="{{ $cat->id }}" {{ ($survey->survey_category_id == $cat->id || $survey->category == $cat->name) ? 'selected' : '' }}>
+                                {{ $cat->name }}
+                            </option>
+                        @endforeach
                     </select>
                 </div>
 
-                <button type="button" onclick="toggleSelectAllBank(this)" style="background: none; border: none; color: #2563EB; font-weight: 700; font-size: 0.8rem; cursor: pointer;">
-                    Pilih Semua
-                </button>
+                <div style="min-width: 160px;">
+                    <label style="font-size: 0.75rem; font-weight: 700; color: #475569; display: block; margin-bottom: 0.2rem;">Target Bagian (Section):</label>
+                    <select name="section" style="width: 100%; padding: 0.4rem 0.65rem; border: 1px solid var(--color-border); border-radius: 6px; font-size: 0.8rem; font-weight: 600; background: #FFFFFF;">
+                        <option value="B">Bagian B (Dimensi Inti)</option>
+                        <option value="C">Bagian C (Pertanyaan Umum)</option>
+                        <option value="A">Bagian A</option>
+                    </select>
+                </div>
+
+                <div style="align-self: flex-end;">
+                    <button type="button" onclick="toggleSelectAllBank(this)" style="background: #E2E8F0; border: none; padding: 0.45rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; white-space: nowrap;">
+                        Pilih Semua
+                    </button>
+                </div>
             </div>
 
-            <!-- List of templates in Bank -->
-            <div style="max-height: 360px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: 8px; margin-bottom: 1.25rem; -webkit-overflow-scrolling: touch;">
+            <div id="bankTemplatesContainer" style="flex: 1; overflow-y: auto; border: 1px solid var(--color-border); border-radius: 8px; margin-bottom: 1rem; padding: 0.5rem;">
                 @forelse($bankTemplates as $tpl)
-                <label style="display: flex; align-items: flex-start; gap: 0.65rem; padding: 0.75rem 0.85rem; border-bottom: 1px solid #F1F5F9; cursor: pointer; transition: background 0.15s ease;">
-                    <input type="checkbox" name="template_ids[]" value="{{ $tpl->id }}" class="bank-checkbox" style="margin-top: 0.25rem; width: 16px; height: 16px; flex-shrink: 0;">
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.2rem; flex-wrap: wrap;">
-                            @if($tpl->dimension)
-                                <span style="font-size: 0.7rem; font-weight: 800; background: {{ $tpl->dimension->color ?? '#2563EB' }}15; color: {{ $tpl->dimension->color ?? '#2563EB' }}; padding: 0.1rem 0.35rem; border-radius: 4px;">
-                                    {{ $tpl->dimension->name }}
+                    <label class="bank-template-item" data-category-id="{{ $tpl->dimension?->survey_category_id }}" style="display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.65rem 0.75rem; border-bottom: 1px solid #F1F5F9; cursor: pointer; font-size: 0.85rem; transition: background 0.15s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='transparent'">
+                        <input type="checkbox" name="template_ids[]" value="{{ $tpl->id }}" class="bank-checkbox" style="margin-top: 0.25rem;">
+                        <div style="flex: 1;">
+                            <div style="display: flex; gap: 0.4rem; align-items: center; margin-bottom: 0.2rem; flex-wrap: wrap;">
+                                @if($tpl->dimension)
+                                    <span style="background: #EFF6FF; color: #2563EB; font-size: 0.7rem; font-weight: 800; padding: 0.1rem 0.4rem; border-radius: 4px;">
+                                        {{ $tpl->dimension->category?->name ?? 'Umum' }}
+                                    </span>
+                                    <span style="background: {{ $tpl->dimension->color ?? '#2563EB' }}15; color: {{ $tpl->dimension->color ?? '#2563EB' }}; font-size: 0.7rem; font-weight: 700; padding: 0.1rem 0.4rem; border-radius: 4px;">
+                                        {{ $tpl->dimension->name }}
+                                    </span>
+                                @endif
+                                @if($tpl->indicator_title)
+                                    <span style="color: #64748B; font-size: 0.75rem; font-weight: 600;">
+                                        &bull; {{ $tpl->indicator_title }}
+                                    </span>
+                                @endif
+                                <span style="color: #94A3B8; font-size: 0.7rem;">
+                                    ({{ $tpl->question_type }})
                                 </span>
-                            @endif
-                            <span style="font-size: 0.75rem; font-weight: 700; color: var(--color-navy-primary);">
-                                {{ $tpl->indicator_title ?: 'Template #' . $tpl->id }}
-                            </span>
-                            <span style="font-size: 0.7rem; color: #64748B;">
-                                ({{ $tpl->question_type }})
-                            </span>
+                            </div>
+                            <div style="color: #1E293B; line-height: 1.4;">{{ $tpl->question_text }}</div>
                         </div>
-                        <div style="font-size: 0.825rem; color: #334155; line-height: 1.4;">
-                            {{ $tpl->question_text }}
-                        </div>
-                    </div>
-                </label>
+                    </label>
                 @empty
-                <div style="padding: 2rem; text-align: center; color: #64748B; font-size: 0.85rem;">
-                    Belum ada template di Bank Soal.
-                </div>
+                    <div style="text-align: center; padding: 2rem; color: #94A3B8;">
+                        Tidak ada template di Bank Soal. Tambahkan template terlebih dahulu.
+                    </div>
                 @endforelse
             </div>
 
-            <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+            <div style="display: flex; justify-content: flex-end; gap: 0.6rem;">
                 <button type="button" onclick="closeModal('importBankModal')" style="background: #F1F5F9; border: 1px solid #E2E8F0; color: #64748B; padding: 0.6rem 1rem; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer;">
                     Batal
                 </button>
@@ -331,13 +353,18 @@
     </div>
 </div>
 
-<!-- Modal Create Custom Question -->
+<!-- Modal Create Question Directly -->
 <div id="createQuestionModal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(4px); padding: 1rem;">
     <div class="modal-box">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
-            <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--color-navy-primary); margin: 0;">
-                Tambah Pertanyaan Kustom
-            </h3>
+            <div>
+                <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--color-navy-primary); margin: 0;">
+                    Tambah Butir Pertanyaan Baru
+                </h3>
+                <span style="display: inline-block; font-size: 0.725rem; font-weight: 800; color: #2563EB; background: #EFF6FF; padding: 0.15rem 0.5rem; border-radius: 4px; margin-top: 0.25rem;">
+                    Kategori: {{ $survey->categoryModel?->name ?? $survey->category }}
+                </span>
+            </div>
             <button onclick="closeModal('createQuestionModal')" style="background: none; border: none; font-size: 1.25rem; color: #94A3B8; cursor: pointer;">
                 <i class="bi bi-x-lg"></i>
             </button>
@@ -345,28 +372,31 @@
 
         <form action="{{ route('admin.surveys.questions.store', $survey->id) }}" method="POST">
             @csrf
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.75rem; margin-bottom: 1rem;">
+            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 0.75rem; margin-bottom: 1rem;">
                 <div>
                     <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 0.35rem;">Bagian (Section) *</label>
                     <select name="section" style="width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.85rem; background: #FFFFFF;">
-                        <option value="B">Bagian B (Inti)</option>
-                        <option value="C">Bagian C (Umum)</option>
+                        <option value="B">Bagian B (Dimensi Inti)</option>
+                        <option value="C">Bagian C (Pertanyaan Umum)</option>
                         <option value="A">Bagian A</option>
                     </select>
                 </div>
                 <div>
-                    <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 0.35rem;">Dimensi / Kategori</label>
-                    <select name="dimension_id" style="width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.85rem; background: #FFFFFF;">
+                    <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 0.35rem;">
+                        Dimensi Indikator *
+                    </label>
+                    <select name="dimension_id" required style="width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.85rem; background: #FFFFFF; font-weight: 600;">
                         <option value="">-- Pilih Dimensi --</option>
                         @foreach($dimensions as $dim)
-                            <option value="{{ $dim->id }}">{{ $dim->name }}</option>
+                            <option value="{{ $dim->id }}">{{ $dim->name }} ({{ $dim->code ?: 'DIM' }})</option>
                         @endforeach
                     </select>
                 </div>
-                <div>
-                    <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 0.35rem;">Indikator</label>
-                    <input type="text" name="indicator_title" placeholder="Contoh: Gaji" style="width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.85rem;">
-                </div>
+            </div>
+
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 0.35rem;">Indikator / Judul</label>
+                <input type="text" name="indicator_title" placeholder="Contoh: Tanggung Jawab Individu / Fasilitas" style="width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.85rem;">
             </div>
 
             <div style="margin-bottom: 1rem;">
@@ -377,16 +407,16 @@
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
                 <div>
                     <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 0.35rem;">Tipe Pertanyaan *</label>
-                    <select name="question_type" style="width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.85rem; background: #FFFFFF;">
+                    <select name="question_type" id="createQTypeSurvey" onchange="toggleSurveyTypeFields('create')" style="width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.85rem; background: #FFFFFF;">
                         <option value="dual_rating">Dual Rating (Harapan & Kenyataan)</option>
                         <option value="single_rating">Single Rating (Skala Nilai)</option>
+                        <option value="multiple_choice">Pilihan Ganda (MCQ)</option>
                         <option value="essay">Uraian / Deskriptif</option>
-                        <option value="multiple_choice">Pilihan Ganda</option>
                     </select>
                 </div>
-                <div>
+                <div id="createScaleBlockSurvey">
                     <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 0.35rem;">Skala Rating</label>
-                    <select name="rating_scale" style="width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.85rem; background: #FFFFFF;">
+                    <select name="rating_scale" id="createScaleSurvey" style="width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.85rem; background: #FFFFFF;">
                         <option value="4">Skala 1 - 4</option>
                         <option value="5">Skala 1 - 5</option>
                         <option value="10">Skala 1 - 10</option>
@@ -394,18 +424,34 @@
                 </div>
             </div>
 
-            <!-- Logic Low Score Box -->
-            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 0.85rem; margin-bottom: 1rem;">
+            <!-- Logic Low Score Box (Descriptive / Reason) -->
+            <div id="createReasonContainerSurvey" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 0.85rem; margin-bottom: 1rem;">
                 <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.825rem; font-weight: 700; color: var(--color-navy-primary); cursor: pointer;">
-                    <input type="checkbox" name="require_reason_on_low_score" value="1" checked style="width: 16px; height: 16px;">
-                    Aktifkan Logic Kolom Alasan Wajib Diisi Jika Jawaban &le; 2
+                    <input type="checkbox" name="require_reason_on_low_score" id="createReasonSurvey" value="1" style="width: 16px; height: 16px;">
+                    <span id="createReasonLabelSurvey">Aktifkan Logic Kolom Alasan / Deskriptif</span>
                 </label>
+                <p id="createReasonHelpSurvey" style="margin: 0.35rem 0 0 1.6rem; font-size: 0.75rem; color: #64748B;">
+                    Default: Nonaktif (Opsional). Jika diaktifkan, responden dapat memberikan uraian/alasan deskriptif.
+                </p>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1.25rem;">
+            <div id="createOptionsBlockSurvey" style="display: none; margin-bottom: 1rem;">
+                <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 0.35rem;">Pilihan Jawaban (Satu baris per opsi)</label>
+                <textarea name="options_text" rows="3" placeholder="Opsi 1&#10;Opsi 2&#10;Opsi 3" style="width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.85rem; font-family: inherit;"></textarea>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; margin-bottom: 1.25rem;">
                 <div>
                     <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 0.35rem;">Khusus Status Pegawai</label>
                     <input type="text" name="applies_to_employment_status" placeholder="Contoh: Tetap" style="width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.85rem;">
+                </div>
+                <div>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 0.35rem;">Khusus Jenis Kelamin</label>
+                    <select name="applies_to_gender" style="width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.85rem; background: #FFFFFF;">
+                        <option value="">Semua Gender (Umum)</option>
+                        <option value="Laki-laki">Laki-laki</option>
+                        <option value="Perempuan">Perempuan</option>
+                    </select>
                 </div>
                 <div>
                     <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 0.35rem;">Khusus Jabatan</label>
@@ -454,11 +500,13 @@
                     <input type="number" name="question_number" id="editQNum" style="width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.85rem;">
                 </div>
                 <div>
-                    <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 0.35rem;">Dimensi / Kategori</label>
-                    <select name="dimension_id" id="editQDim" style="width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.85rem; background: #FFFFFF;">
+                    <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 0.35rem;">Dimensi Indikator</label>
+                    <select name="dimension_id" id="editQDim" style="width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.85rem; background: #FFFFFF; font-weight: 600;">
                         <option value="">-- Pilih Dimensi --</option>
-                        @foreach($dimensions as $dim)
-                            <option value="{{ $dim->id }}">{{ $dim->name }}</option>
+                        @foreach($allDimensions as $dim)
+                            <option value="{{ $dim->id }}">
+                                {{ $dim->category ? '[' . $dim->category->name . '] ' : '' }}{{ $dim->name }}
+                            </option>
                         @endforeach
                     </select>
                 </div>
@@ -477,14 +525,14 @@
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
                 <div>
                     <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 0.35rem;">Tipe Pertanyaan *</label>
-                    <select name="question_type" id="editQTypeSurvey" style="width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.85rem; background: #FFFFFF;">
+                    <select name="question_type" id="editQTypeSurvey" onchange="toggleSurveyTypeFields('edit')" style="width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.85rem; background: #FFFFFF;">
                         <option value="dual_rating">Dual Rating (Harapan & Kenyataan)</option>
                         <option value="single_rating">Single Rating (Skala Nilai)</option>
+                        <option value="multiple_choice">Pilihan Ganda (MCQ)</option>
                         <option value="essay">Uraian / Deskriptif</option>
-                        <option value="multiple_choice">Pilihan Ganda</option>
                     </select>
                 </div>
-                <div>
+                <div id="editScaleBlockSurvey">
                     <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 0.35rem;">Skala Rating</label>
                     <select name="rating_scale" id="editQScaleSurvey" style="width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.85rem; background: #FFFFFF;">
                         <option value="4">Skala 1 - 4</option>
@@ -494,17 +542,33 @@
                 </div>
             </div>
 
-            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 0.85rem; margin-bottom: 1rem;">
+            <div id="editReasonContainerSurvey" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 0.85rem; margin-bottom: 1rem;">
                 <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.825rem; font-weight: 700; color: var(--color-navy-primary); cursor: pointer;">
                     <input type="checkbox" name="require_reason_on_low_score" id="editQReasonSurvey" value="1" style="width: 16px; height: 16px;">
-                    Aktifkan Logic Kolom Alasan Wajib Diisi Jika Jawaban &le; 2
+                    <span id="editReasonLabelSurvey">Aktifkan Logic Kolom Alasan / Deskriptif</span>
                 </label>
+                <p id="editReasonHelpSurvey" style="margin: 0.35rem 0 0 1.6rem; font-size: 0.75rem; color: #64748B;">
+                    Default: Nonaktif (Opsional). Jika diaktifkan, responden dapat memberikan uraian/alasan deskriptif.
+                </p>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1.25rem;">
+            <div id="editOptionsBlockSurvey" style="display: none; margin-bottom: 1rem;">
+                <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 0.35rem;">Pilihan Jawaban (Satu baris per opsi)</label>
+                <textarea name="options_text" id="editOptionsTextSurvey" rows="3" style="width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.85rem; font-family: inherit;"></textarea>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; margin-bottom: 1.25rem;">
                 <div>
                     <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 0.35rem;">Khusus Status Pegawai</label>
                     <input type="text" name="applies_to_employment_status" id="editQEmpSurvey" style="width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.85rem;">
+                </div>
+                <div>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 0.35rem;">Khusus Jenis Kelamin</label>
+                    <select name="applies_to_gender" id="editQGenderSurvey" style="width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.85rem; background: #FFFFFF;">
+                        <option value="">Semua Gender (Umum)</option>
+                        <option value="Laki-laki">Laki-laki</option>
+                        <option value="Perempuan">Perempuan</option>
+                    </select>
                 </div>
                 <div>
                     <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 0.35rem;">Khusus Jabatan</label>
@@ -528,17 +592,71 @@
 <script>
     function openModal(modalId) {
         document.getElementById(modalId).style.display = 'flex';
+        if (modalId === 'importBankModal') {
+            filterImportBankList();
+        }
     }
 
     function closeModal(modalId) {
         document.getElementById(modalId).style.display = 'none';
     }
 
+    function filterImportBankList() {
+        const catFilter = document.getElementById('importCategoryFilter').value;
+        const items = document.querySelectorAll('.bank-template-item');
+
+        items.forEach(item => {
+            const itemCatId = item.getAttribute('data-category-id');
+            if (!catFilter || itemCatId == catFilter) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+                const chk = item.querySelector('.bank-checkbox');
+                if (chk) chk.checked = false;
+            }
+        });
+    }
+
     function toggleSelectAllBank(btn) {
-        const checkboxes = document.querySelectorAll('.bank-checkbox');
-        const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-        checkboxes.forEach(cb => cb.checked = !allChecked);
+        const visibleCheckboxes = Array.from(document.querySelectorAll('.bank-template-item'))
+            .filter(item => item.style.display !== 'none')
+            .map(item => item.querySelector('.bank-checkbox'))
+            .filter(Boolean);
+
+        const allChecked = visibleCheckboxes.every(cb => cb.checked);
+        visibleCheckboxes.forEach(cb => cb.checked = !allChecked);
         btn.textContent = allChecked ? 'Pilih Semua' : 'Batal Pilih Semua';
+    }
+
+    function toggleSurveyTypeFields(mode) {
+        const typeSelect = document.getElementById(mode === 'create' ? 'createQTypeSurvey' : 'editQTypeSurvey');
+        const optBlock = document.getElementById(mode === 'create' ? 'createOptionsBlockSurvey' : 'editOptionsBlockSurvey');
+        const scaleBlock = document.getElementById(mode === 'create' ? 'createScaleBlockSurvey' : 'editScaleBlockSurvey');
+        const scaleSelect = document.getElementById(mode === 'create' ? 'createScaleSurvey' : 'editQScaleSurvey');
+        const reasonContainer = document.getElementById(mode === 'create' ? 'createReasonContainerSurvey' : 'editReasonContainerSurvey');
+        const reasonLabel = document.getElementById(mode === 'create' ? 'createReasonLabelSurvey' : 'editReasonLabelSurvey');
+        const reasonHelp = document.getElementById(mode === 'create' ? 'createReasonHelpSurvey' : 'editReasonHelpSurvey');
+
+        if (typeSelect.value === 'multiple_choice') {
+            optBlock.style.display = 'block';
+            if (scaleBlock) scaleBlock.style.display = 'none';
+            if (scaleSelect) scaleSelect.disabled = true;
+            if (reasonContainer) reasonContainer.style.display = 'block';
+            if (reasonLabel) reasonLabel.textContent = 'Aktifkan Kolom Deskriptif / Alasan Tambahan untuk MCQ (Opsional)';
+            if (reasonHelp) reasonHelp.textContent = 'Default: Nonaktif. Jika dicentang, responden dapat mengisi catatan/alasan opsional setelah memilih opsi.';
+        } else if (typeSelect.value === 'essay') {
+            optBlock.style.display = 'none';
+            if (scaleBlock) scaleBlock.style.display = 'none';
+            if (scaleSelect) scaleSelect.disabled = true;
+            if (reasonContainer) reasonContainer.style.display = 'none';
+        } else {
+            optBlock.style.display = 'none';
+            if (scaleBlock) scaleBlock.style.display = 'block';
+            if (scaleSelect) scaleSelect.disabled = false;
+            if (reasonContainer) reasonContainer.style.display = 'block';
+            if (reasonLabel) reasonLabel.textContent = 'Aktifkan Logic Kolom Alasan Wajib Diisi Jika Skor ≤ 2';
+            if (reasonHelp) reasonHelp.textContent = 'Default: Nonaktif. Jika dicentang, kolom alasan wajib diisi saat responden memberi skor rendah.';
+        }
     }
 
     function editSurveyQuestion(q) {
@@ -550,9 +668,18 @@
         document.getElementById('editQTextSurvey').value = q.question_text || '';
         document.getElementById('editQTypeSurvey').value = q.question_type || 'dual_rating';
         document.getElementById('editQScaleSurvey').value = q.rating_scale || 4;
-        document.getElementById('editQReasonSurvey').checked = !!(q.require_reason_on_low_score || q.section === 'B');
+        document.getElementById('editQReasonSurvey').checked = !!q.require_reason_on_low_score;
         document.getElementById('editQEmpSurvey').value = q.applies_to_employment_status || '';
+        document.getElementById('editQGenderSurvey').value = q.applies_to_gender || '';
         document.getElementById('editQPosSurvey').value = q.applies_to_positions || '';
+
+        if (q.options_json && Array.isArray(q.options_json)) {
+            document.getElementById('editOptionsTextSurvey').value = q.options_json.join("\n");
+        } else {
+            document.getElementById('editOptionsTextSurvey').value = '';
+        }
+
+        toggleSurveyTypeFields('edit');
         openModal('editQuestionModal');
     }
 

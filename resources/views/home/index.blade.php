@@ -81,77 +81,105 @@
     </div>
 
     <!-- Survey Catalog Grid Header -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
-        <h2 style="font-size: 1.15rem; font-weight: 700; color: #1E293B;">Daftar Kuesioner Perusahaan</h2>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.5rem;">
+        <h2 style="font-size: 1.15rem; font-weight: 800; color: #1E293B;">Daftar Instrumen Kuesioner Perusahaan</h2>
         <span style="font-size: 0.8rem; background: #E2E8F0; color: #475569; padding: 0.25rem 0.75rem; border-radius: 9999px; font-weight: 700;">
             {{ $surveys->count() }} Survei {{ Auth::user()->isAdmin() ? 'Terdaftar' : 'Aktif' }}
         </span>
     </div>
 
-    <div style="display: flex; flex-direction: column; gap: 1rem;">
-        @forelse($surveys as $survey)
-        <div class="survey-list-card">
-            <!-- Left Info -->
-            <div style="display: flex; align-items: flex-start; gap: 1rem; flex: 1;">
-                <div style="width: 48px; height: 48px; border-radius: 12px; background: {{ $survey->slug == 'engagement-survey' ? '#ECFDF5' : '#EFF6FF' }}; color: {{ $survey->slug == 'engagement-survey' ? '#059669' : '#2563EB' }}; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink: 0; box-shadow: 0 4px 8px rgba(0,0,0,0.05);">
-                    <i class="bi {{ $survey->icon ?: 'bi-clipboard-data' }}"></i>
-                </div>
-                <div>
-                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem; flex-wrap: wrap;">
-                        <h3 style="font-size: 1.1rem; font-weight: 800; color: #0F172A; margin: 0;">{{ $survey->title }}</h3>
-                        @if(Auth::user()->isAdmin())
-                            @if($survey->is_active)
-                                <span style="background: #D1FAE5; color: #065F46; font-size: 0.7rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 6px;">AKTIF</span>
-                            @else
-                                <span style="background: #FEE2E2; color: #991B1B; font-size: 0.7rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 6px;">NONAKTIF</span>
-                            @endif
-                        @else
-                            <span style="background: #D1FAE5; color: #065F46; font-size: 0.7rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 6px;">TERSEDIA</span>
-                        @endif
+    @php
+        $groupedSurveys = $surveys->groupBy('category');
+    @endphp
 
-                        @if($survey->start_date && $survey->end_date)
-                            <small style="color: #64748B; font-size: 0.75rem;">
-                                ({{ $survey->start_date->format('d M') }} - {{ $survey->end_date->format('d M Y') }})
-                            </small>
-                        @endif
+    @forelse($groupedSurveys as $categoryName => $catSurveys)
+    <div style="margin-bottom: 2rem;">
+        <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.85rem;">
+            @php
+                $catIcon = match(trim($categoryName)) {
+                    'Survey Budaya Kerja', 'Budaya Kerja' => 'bi-people-fill',
+                    'Employee Engagement Survey', 'Engagement Survey' => 'bi-graph-up-arrow',
+                    'Customer Satisfaction Survey', 'Kepuasan Pelanggan' => 'bi-award-fill',
+                    default => 'bi-clipboard-check-fill'
+                };
+            @endphp
+            <div style="width: 28px; height: 28px; border-radius: 6px; background: var(--color-navy-primary); color: #FFF; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;">
+                <i class="bi {{ $catIcon }}"></i>
+            </div>
+            <h3 style="font-size: 1.05rem; font-weight: 800; color: var(--color-navy-primary); margin: 0;">
+                {{ $categoryName }}
+            </h3>
+            <span style="font-size: 0.75rem; color: #64748B; font-weight: 600; background: #F1F5F9; padding: 0.15rem 0.5rem; border-radius: 9999px;">
+                {{ $catSurveys->count() }} Kuesioner
+            </span>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+            @foreach($catSurveys as $survey)
+            <div class="survey-list-card">
+                <!-- Left Info -->
+                <div style="display: flex; align-items: flex-start; gap: 1rem; flex: 1;">
+                    <div style="width: 48px; height: 48px; border-radius: 12px; background: {{ $survey->slug == 'engagement-survey' ? '#ECFDF5' : '#EFF6FF' }}; color: {{ $survey->slug == 'engagement-survey' ? '#059669' : '#2563EB' }}; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink: 0; box-shadow: 0 4px 8px rgba(0,0,0,0.05);">
+                        <i class="bi {{ $survey->icon ?: 'bi-clipboard-data' }}"></i>
                     </div>
-                    <p style="color: #64748B; font-size: 0.85rem; line-height: 1.45; margin: 0;">{{ $survey->description }}</p>
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem; flex-wrap: wrap;">
+                            <h4 style="font-size: 1.05rem; font-weight: 800; color: #0F172A; margin: 0;">{{ $survey->title }}</h4>
+                            @if(Auth::user()->isAdmin())
+                                @if($survey->is_active)
+                                    <span style="background: #D1FAE5; color: #065F46; font-size: 0.7rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 6px;">AKTIF</span>
+                                @else
+                                    <span style="background: #FEE2E2; color: #991B1B; font-size: 0.7rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 6px;">NONAKTIF</span>
+                                @endif
+                            @else
+                                <span style="background: #D1FAE5; color: #065F46; font-size: 0.7rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 6px;">TERSEDIA</span>
+                            @endif
+
+                            @if($survey->start_date && $survey->end_date)
+                                <small style="color: #64748B; font-size: 0.75rem;">
+                                    ({{ $survey->start_date->format('d M') }} - {{ $survey->end_date->format('d M Y') }})
+                                </small>
+                            @endif
+                        </div>
+                        <p style="color: #64748B; font-size: 0.85rem; line-height: 1.45; margin: 0;">{{ $survey->description }}</p>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="survey-card-actions">
+                    @if(Auth::user()->isAdmin())
+                        <button onclick="openShareModal('{{ $survey->title }}', '{{ route('survey.form', $survey->slug) }}')" style="background: #F8FAFC; border: 1px solid #CBD5E1; color: #334155; padding: 0.55rem 0.85rem; border-radius: 8px; font-size: 0.825rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.35rem;" title="Bagi Tautan">
+                            <i class="bi bi-share-fill" style="color: #2563EB;"></i> Share
+                        </button>
+                        
+                        <a href="{{ route('admin.surveys.questions', $survey->id) }}" style="background: #F1F5F9; border: 1px solid #CBD5E1; color: #334155; text-decoration: none; padding: 0.55rem 0.85rem; border-radius: 8px; font-size: 0.825rem; font-weight: 600; display: flex; align-items: center; gap: 0.35rem;" title="Question Builder">
+                            <i class="bi bi-ui-checks"></i> Soal
+                        </a>
+
+                        <a href="{{ route('admin.dashboard', ['survey_id' => $survey->id]) }}" style="background: #EFF6FF; border: 1px solid #BFDBFE; color: #1D4ED8; text-decoration: none; padding: 0.55rem 0.85rem; border-radius: 8px; font-size: 0.825rem; font-weight: 700; display: flex; align-items: center; gap: 0.35rem;">
+                            <i class="bi bi-pie-chart-fill"></i> Analytics
+                        </a>
+                    @endif
+
+                    <a href="{{ route('survey.form', $survey->slug) }}" class="btn-primary-form" style="background: #ECFDF5; border: 1.5px solid #A7F3D0; color: #047857; text-decoration: none; padding: 0.55rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 800; display: flex; align-items: center; gap: 0.35rem;">
+                        <i class="bi bi-file-earmark-text-fill"></i> Isi Form Survei <i class="bi bi-arrow-right"></i>
+                    </a>
                 </div>
             </div>
-
-            <!-- Action Buttons -->
-            <div class="survey-card-actions">
-                @if(Auth::user()->isAdmin())
-                    <button onclick="openShareModal('{{ $survey->title }}', '{{ route('survey.form', $survey->slug) }}')" style="background: #F8FAFC; border: 1px solid #CBD5E1; color: #334155; padding: 0.55rem 0.85rem; border-radius: 8px; font-size: 0.825rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.35rem;" title="Bagi Tautan">
-                        <i class="bi bi-share-fill" style="color: #2563EB;"></i> Share
-                    </button>
-                    
-                    <a href="{{ route('admin.surveys.questions', $survey->id) }}" style="background: #F1F5F9; border: 1px solid #CBD5E1; color: #334155; text-decoration: none; padding: 0.55rem 0.85rem; border-radius: 8px; font-size: 0.825rem; font-weight: 600; display: flex; align-items: center; gap: 0.35rem;" title="Question Builder">
-                        <i class="bi bi-ui-checks"></i> Soal
-                    </a>
-
-                    <a href="{{ route('admin.dashboard', ['survey_id' => $survey->id]) }}" style="background: #EFF6FF; border: 1px solid #BFDBFE; color: #1D4ED8; text-decoration: none; padding: 0.55rem 0.85rem; border-radius: 8px; font-size: 0.825rem; font-weight: 700; display: flex; align-items: center; gap: 0.35rem;">
-                        <i class="bi bi-pie-chart-fill"></i> Analytics
-                    </a>
-                @endif
-
-                <a href="{{ route('survey.form', $survey->slug) }}" class="btn-primary-form" style="background: #ECFDF5; border: 1.5px solid #A7F3D0; color: #047857; text-decoration: none; padding: 0.55rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 800; display: flex; align-items: center; gap: 0.35rem;">
-                    <i class="bi bi-file-earmark-text-fill"></i> Isi Form Survei <i class="bi bi-arrow-right"></i>
-                </a>
-            </div>
+            @endforeach
         </div>
-        @empty
-        <div style="background: #FFFFFF; border: 1.5px dashed #CBD5E1; border-radius: 14px; padding: 3rem 1.5rem; text-align: center;">
-            <div style="width: 56px; height: 56px; border-radius: 50%; background: #F1F5F9; color: #94A3B8; display: inline-flex; align-items: center; justify-content: center; font-size: 1.6rem; margin-bottom: 0.85rem;">
-                <i class="bi bi-calendar-x"></i>
-            </div>
-            <h3 style="font-size: 1.1rem; font-weight: 700; color: #334155; margin-bottom: 0.35rem;">Tidak Ada Survei yang Sedang Aktif</h3>
-            <p style="color: #64748B; font-size: 0.875rem; max-width: 440px; margin: 0 auto;">
-                Saat ini belum ada instrumen kuesioner yang aktif untuk diisi. Silakan hubungi tim HR / Administrator jika Anda memiliki pertanyaan.
-            </p>
-        </div>
-        @endforelse
     </div>
+    @empty
+    <div style="background: #FFFFFF; border: 1.5px dashed #CBD5E1; border-radius: 14px; padding: 3rem 1.5rem; text-align: center;">
+        <div style="width: 56px; height: 56px; border-radius: 50%; background: #F1F5F9; color: #94A3B8; display: inline-flex; align-items: center; justify-content: center; font-size: 1.6rem; margin-bottom: 0.85rem;">
+            <i class="bi bi-calendar-x"></i>
+        </div>
+        <h3 style="font-size: 1.1rem; font-weight: 700; color: #334155; margin-bottom: 0.35rem;">Tidak Ada Survei yang Sedang Aktif</h3>
+        <p style="color: #64748B; font-size: 0.875rem; max-width: 440px; margin: 0 auto;">
+            Saat ini belum ada instrumen kuesioner yang aktif untuk diisi. Silakan hubungi tim HR / Administrator jika Anda memiliki pertanyaan.
+        </p>
+    </div>
+    @endforelse
 </div>
 
 <!-- Modal Generate Link Survey -->

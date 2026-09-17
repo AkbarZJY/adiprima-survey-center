@@ -528,6 +528,9 @@
 </head>
 <body>
 
+    <!-- Same-Page SPA Top Progress Bar Indicator -->
+    <div id="spaProgressBar" style="position: fixed; top: 0; left: 0; height: 3px; width: 0%; background: linear-gradient(90deg, #1EA1E5, #10B981); z-index: 99999; transition: width 0.2s ease, opacity 0.3s ease; opacity: 0; pointer-events: none;"></div>
+
     <!-- Top Navigation Bar -->
     <header class="top-navbar">
         <div class="navbar-left">
@@ -597,11 +600,14 @@
                 <a href="{{ route('admin.surveys.index') }}" class="sidebar-menu-item {{ request()->routeIs('admin.surveys*') ? 'active' : '' }}" onclick="closeMobileSidebar()">
                     <i class="bi bi-kanban-fill"></i> Kelola Survei
                 </a>
+                <a href="{{ route('admin.survey-categories.index') }}" class="sidebar-menu-item {{ request()->routeIs('admin.survey-categories*') ? 'active' : '' }}" onclick="closeMobileSidebar()">
+                    <i class="bi bi-tags-fill"></i> Kategori Survei
+                </a>
                 <a href="{{ route('admin.question-bank.index') }}" class="sidebar-menu-item {{ request()->routeIs('admin.question-bank*') ? 'active' : '' }}" onclick="closeMobileSidebar()">
                     <i class="bi bi-collection-fill"></i> Bank Template Soal
                 </a>
                 <a href="{{ route('admin.dimensions.index') }}" class="sidebar-menu-item {{ request()->routeIs('admin.dimensions*') ? 'active' : '' }}" onclick="closeMobileSidebar()">
-                    <i class="bi bi-tags-fill"></i> Kategori & Dimensi
+                    <i class="bi bi-diagram-3-fill"></i> Dimensi Indikator
                 </a>
 
                 <div class="sidebar-section-title">Akses Kuesioner</div>
@@ -626,7 +632,7 @@
             @endif
         @endauth
 
-        <main class="content-area">
+        <main class="content-area" id="mainContentArea">
             @if(session('success'))
                 <div style="background-color: #DEF7EC; border: 1px solid #84E1BC; color: #03543F; padding: 0.85rem 1rem; border-radius: 10px; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.6rem; font-size: 0.9rem; font-weight: 500;">
                     <i class="bi bi-check-circle-fill" style="color: #10B981; font-size: 1.1rem; flex-shrink: 0;"></i>
@@ -638,6 +644,20 @@
                 <div style="background-color: #FDE8E8; border: 1px solid #F8B4B4; color: #9B1C1C; padding: 0.85rem 1rem; border-radius: 10px; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.6rem; font-size: 0.9rem; font-weight: 500;">
                     <i class="bi bi-exclamation-triangle-fill" style="color: #EF4444; font-size: 1.1rem; flex-shrink: 0;"></i>
                     <span>{{ session('error') }}</span>
+                </div>
+            @endif
+
+            @if($errors->any())
+                <div style="background-color: #FDE8E8; border: 1px solid #F8B4B4; color: #9B1C1C; padding: 0.85rem 1rem; border-radius: 10px; margin-bottom: 1.25rem; font-size: 0.875rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; font-weight: 700; margin-bottom: 0.35rem;">
+                        <i class="bi bi-exclamation-octagon-fill" style="color: #EF4444; font-size: 1.1rem;"></i>
+                        <span>Terjadi Kesalahan Validasi:</span>
+                    </div>
+                    <ul style="margin: 0; padding-left: 1.5rem; font-size: 0.85rem;">
+                        @foreach($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
                 </div>
             @endif
 
@@ -672,6 +692,167 @@
                 document.body.style.overflow = '';
             }
         }
+
+        // --- Same-Page Clean-URL SPA Router Engine ---
+        (function initSamePageSpa() {
+            const progressBar = document.getElementById('spaProgressBar');
+            const mainContent = document.getElementById('mainContentArea');
+            if (!mainContent) return;
+
+            function isSamePage(targetUrl) {
+                try {
+                    const current = new URL(window.location.href);
+                    const target = new URL(targetUrl, window.location.origin);
+                    if (target.origin !== current.origin) return false;
+                    const curPath = current.pathname.replace(/\/+$/, '') || '/';
+                    const tarPath = target.pathname.replace(/\/+$/, '') || '/';
+                    return curPath === tarPath;
+                } catch (e) {
+                    return false;
+                }
+            }
+
+            function startProgress() {
+                if (!progressBar) return;
+                progressBar.style.opacity = '1';
+                progressBar.style.width = '35%';
+                setTimeout(() => { 
+                    if (progressBar.style.opacity === '1') progressBar.style.width = '75%'; 
+                }, 100);
+            }
+
+            function finishProgress() {
+                if (!progressBar) return;
+                progressBar.style.width = '100%';
+                setTimeout(() => {
+                    progressBar.style.opacity = '0';
+                    setTimeout(() => { progressBar.style.width = '0%'; }, 200);
+                }, 80);
+            }
+
+            async function navigateSamePage(fetchUrl) {
+                startProgress();
+                try {
+                    const response = await fetch(fetchUrl, {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        window.location.href = fetchUrl;
+                        return;
+                    }
+
+                    const htmlText = await response.text();
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(htmlText, 'text/html');
+
+                    const newContent = doc.getElementById('mainContentArea');
+                    if (!newContent) {
+                        window.location.href = fetchUrl;
+                        return;
+                    }
+
+                    if (doc.title) {
+                        document.title = doc.title;
+                    }
+
+                    // 1. Destroy existing Chart instances safely
+                    if (window.Chart) {
+                        document.querySelectorAll('canvas').forEach(canvas => {
+                            try {
+                                if (typeof Chart.getChart === 'function') {
+                                    const inst = Chart.getChart(canvas);
+                                    if (inst) inst.destroy();
+                                }
+                            } catch (e) {}
+                        });
+                    }
+
+                    // 2. Smoothly swap main content
+                    mainContent.style.opacity = '0.7';
+                    mainContent.innerHTML = newContent.innerHTML;
+                    mainContent.style.opacity = '1';
+
+                    // 3. Keep URL clean in address bar (e.g. http://127.0.0.1:8000/admin/dashboard without query params)
+                    const cleanPath = window.location.pathname;
+                    history.replaceState({ url: cleanPath }, doc.title || '', cleanPath);
+
+                    // 4. Safely execute any inline scripts or charts in the new content
+                    const scriptsToRun = [];
+                    newContent.querySelectorAll('script').forEach(s => scriptsToRun.push(s));
+                    doc.querySelectorAll('script').forEach(s => {
+                        if (!s.src && (s.textContent.includes('Chart') || s.textContent.includes('dimLabels') || s.textContent.includes('dimensionScores'))) {
+                            scriptsToRun.push(s);
+                        }
+                    });
+
+                    scriptsToRun.forEach(oldScript => {
+                        try {
+                            const newScript = document.createElement('script');
+                            Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                            newScript.textContent = oldScript.textContent;
+                            document.body.appendChild(newScript);
+                            setTimeout(() => {
+                                try {
+                                    if (newScript.parentNode) newScript.parentNode.removeChild(newScript);
+                                } catch (e) {}
+                            }, 100);
+                        } catch (errScript) {
+                            console.warn('Script notice:', errScript);
+                        }
+                    });
+
+                    window.scrollTo({ top: 0, behavior: 'instant' });
+                    finishProgress();
+                } catch (err) {
+                    console.error('Same-page SPA error:', err);
+                    window.location.href = fetchUrl;
+                }
+            }
+
+            // Intercept internal same-page clicks using capture phase
+            document.addEventListener('click', function(e) {
+                const link = e.target.closest('a');
+                if (!link) return;
+
+                const href = link.getAttribute('href');
+                if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:')) return;
+                if (link.target === '_blank' || link.hasAttribute('download') || link.getAttribute('data-no-spa') !== null) return;
+                if (href.includes('/export') || href.endsWith('.xlsx') || href.endsWith('.csv') || href.endsWith('.pdf')) return;
+
+                // Only intercept when clicking links on the SAME page
+                if (isSamePage(link.href)) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    navigateSamePage(link.href);
+                }
+                // When clicking a different page, normal full page reload occurs
+            }, true);
+
+            // Intercept GET forms on the SAME page (e.g. category/survey switchers, filters, search)
+            document.addEventListener('submit', function(e) {
+                const form = e.target;
+                if (form.method && form.method.toUpperCase() === 'GET' && !form.getAttribute('target') && !form.hasAttribute('data-no-spa')) {
+                    const action = form.action || window.location.href;
+                    if (isSamePage(action)) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const formData = new FormData(form);
+                        const params = new URLSearchParams();
+                        for (const [key, value] of formData.entries()) {
+                            if (value !== '') {
+                                params.append(key, value);
+                            }
+                        }
+                        const queryStr = params.toString();
+                        const targetUrl = action.split('?')[0] + (queryStr ? '?' + queryStr : '');
+                        navigateSamePage(targetUrl);
+                    }
+                }
+            }, true);
+        })();
     </script>
     @yield('scripts')
 </body>

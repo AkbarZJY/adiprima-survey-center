@@ -19,7 +19,14 @@ class SurveyFormController extends Controller
 
         $user = Auth::user();
 
-        // Check if survey is active and within valid dates
+        // Check if survey is archived or active
+        if ($survey->is_archived) {
+            return view('survey.inactive', [
+                'survey' => $survey,
+                'message' => 'Kuesioner ini telah diarsipkan dan ditutup. Terima kasih atas partisipasi Anda pada periode sebelumnya.',
+            ]);
+        }
+
         if (!$survey->is_active) {
             return view('survey.inactive', [
                 'survey' => $survey,
@@ -129,6 +136,7 @@ class SurveyFormController extends Controller
                 'tenure' => $request->tenure,
                 'department' => $request->department,
                 'position' => $request->position,
+                'started_at' => $request->started_at ? Carbon::parse($request->started_at) : Carbon::now(),
                 'submitted_at' => Carbon::now(),
                 'ip_address' => $request->ip(),
             ]
@@ -148,19 +156,15 @@ class SurveyFormController extends Controller
             }
 
             // Handle Question Types
-            if ($question->question_type === 'dual_rating' || $question->section === 'B') {
-                $expScore = $request->input("expectation_" . $question->id);
-                $realScore = $request->input("reality_" . $question->id);
+            if ($question->question_type === 'multiple_choice') {
+                $choice = $request->input("choice_" . $question->id) ?? $request->input("mcq_" . $question->id);
                 $reasonText = $request->input("reason_" . $question->id);
-
-                $threshold = $question->low_score_threshold ?? 2;
-                $saveReason = ($question->require_reason_on_low_score && $realScore <= $threshold) ? $reasonText : ($realScore <= 2 ? $reasonText : null);
+                $saveReason = ($question->require_reason_on_low_score && !empty($reasonText)) ? $reasonText : null;
 
                 SurveyAnswer::create([
                     'survey_response_id' => $response->id,
                     'question_id' => $question->id,
-                    'expectation_score' => $expScore,
-                    'reality_score' => $realScore,
+                    'text_answer' => $choice,
                     'reason_text' => $saveReason,
                 ]);
             } elseif ($question->question_type === 'single_rating') {
@@ -184,13 +188,21 @@ class SurveyFormController extends Controller
                     'question_id' => $question->id,
                     'text_answer' => $textAnswer,
                 ]);
-            } elseif ($question->question_type === 'multiple_choice') {
-                $choice = $request->input("choice_" . $question->id);
+            } else {
+                // dual_rating or default Section B rating
+                $expScore = $request->input("expectation_" . $question->id);
+                $realScore = $request->input("reality_" . $question->id);
+                $reasonText = $request->input("reason_" . $question->id);
+
+                $threshold = $question->low_score_threshold ?? 2;
+                $saveReason = ($question->require_reason_on_low_score && $realScore <= $threshold) ? $reasonText : null;
 
                 SurveyAnswer::create([
                     'survey_response_id' => $response->id,
                     'question_id' => $question->id,
-                    'text_answer' => $choice,
+                    'expectation_score' => $expScore,
+                    'reality_score' => $realScore,
+                    'reason_text' => $saveReason,
                 ]);
             }
         }
