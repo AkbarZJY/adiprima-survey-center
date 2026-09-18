@@ -553,6 +553,7 @@
         <!-- Filter & Search Bar -->
         <form action="{{ route('admin.dashboard') }}" method="GET" style="display: flex; gap: 0.6rem; margin-bottom: 1.25rem; flex-wrap: wrap;">
             <input type="hidden" name="survey_id" value="{{ $activeSurvey->id }}">
+            <input type="hidden" name="category" value="{{ $selectedCategory }}">
             <input type="hidden" name="tab" value="raw_data">
             
             <div style="flex: 1; min-width: 200px; position: relative;">
@@ -579,7 +580,7 @@
             </button>
 
             @if($search || $departmentFilter || $positionFilter)
-                <a href="{{ route('admin.dashboard', ['survey_id' => $activeSurvey->id, 'tab' => 'raw_data']) }}" style="background: #F1F5F9; color: #64748B; text-decoration: none; padding: 0.6rem 0.85rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center;">
+                <a href="{{ route('admin.dashboard', ['survey_id' => $activeSurvey->id, 'category' => $selectedCategory, 'tab' => 'raw_data']) }}" style="background: #F1F5F9; color: #64748B; text-decoration: none; padding: 0.6rem 0.85rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center;">
                     Reset
                 </a>
             @endif
@@ -979,91 +980,101 @@
 @section('scripts')
 @if($tab == 'analisa')
 <script>
-    const dimLabels = {!! json_encode(array_keys($dimensionScores)) !!};
-    const realScores = {!! json_encode(array_values($dimensionScores)) !!};
-    const expScores = {!! json_encode(array_values($dimensionExpectationScores)) !!};
+    (function() {
+        const dimLabels = {!! json_encode(array_keys($dimensionScores)) !!};
+        const realScores = {!! json_encode(array_values($dimensionScores)) !!};
+        const expScores = {!! json_encode(array_values($dimensionExpectationScores)) !!};
 
-    // Radar Chart
-    const radarCtx = document.getElementById('dimensionRadarChart').getContext('2d');
-    new Chart(radarCtx, {
-        type: 'radar',
-        data: {
-            labels: dimLabels,
-            datasets: [
-                {
-                    label: 'Tingkat Kenyataan (Perception)',
-                    data: realScores,
-                    backgroundColor: 'rgba(37, 99, 235, 0.2)',
-                    borderColor: '#2563EB',
-                    pointBackgroundColor: '#2563EB',
-                    borderWidth: 2
+        // Radar Chart
+        const radarCanvas = document.getElementById('dimensionRadarChart');
+        if (radarCanvas) {
+            const radarCtx = radarCanvas.getContext('2d');
+            new Chart(radarCtx, {
+                type: 'radar',
+                data: {
+                    labels: dimLabels,
+                    datasets: [
+                        {
+                            label: 'Tingkat Kenyataan (Perception)',
+                            data: realScores,
+                            backgroundColor: 'rgba(37, 99, 235, 0.2)',
+                            borderColor: '#2563EB',
+                            pointBackgroundColor: '#2563EB',
+                            borderWidth: 2
+                        },
+                        {
+                            label: 'Tingkat Harapan (Expectation)',
+                            data: expScores,
+                            backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                            borderColor: '#10B981',
+                            pointBackgroundColor: '#10B981',
+                            borderWidth: 2
+                        }
+                    ]
                 },
-                {
-                    label: 'Tingkat Harapan (Expectation)',
-                    data: expScores,
-                    backgroundColor: 'rgba(16, 185, 129, 0.2)',
-                    borderColor: '#10B981',
-                    pointBackgroundColor: '#10B981',
-                    borderWidth: 2
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 300 },
+                    scales: {
+                        r: {
+                            min: 0,
+                            max: 4,
+                            ticks: { stepSize: 1 }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { boxWidth: 12, font: { size: 11 } }
+                        }
+                    }
                 }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                r: {
-                    min: 0,
-                    max: 4,
-                    ticks: { stepSize: 1 }
-                }
-            },
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: { boxWidth: 12, font: { size: 11 } }
-                }
-            }
+            });
         }
-    });
 
-    // Bar Chart
-    const barCtx = document.getElementById('dimensionBarChart').getContext('2d');
-    new Chart(barCtx, {
-        type: 'bar',
-        data: {
-            labels: dimLabels,
-            datasets: [
-                {
-                    label: 'Kenyataan',
-                    data: realScores,
-                    backgroundColor: '#2563EB'
+        // Bar Chart
+        const barCanvas = document.getElementById('dimensionBarChart');
+        if (barCanvas) {
+            const barCtx = barCanvas.getContext('2d');
+            new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels: dimLabels,
+                    datasets: [
+                        {
+                            label: 'Kenyataan',
+                            data: realScores,
+                            backgroundColor: '#2563EB'
+                        },
+                        {
+                            label: 'Harapan',
+                            data: expScores,
+                            backgroundColor: '#10B981'
+                        }
+                    ]
                 },
-                {
-                    label: 'Harapan',
-                    data: expScores,
-                    backgroundColor: '#10B981'
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 300 },
+                    scales: {
+                        y: {
+                            min: 0,
+                            max: 4,
+                            ticks: { stepSize: 1 }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { boxWidth: 12, font: { size: 11 } }
+                        }
+                    }
                 }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    min: 0,
-                    max: 4,
-                    ticks: { stepSize: 1 }
-                }
-            },
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: { boxWidth: 12, font: { size: 11 } }
-                }
-            }
+            });
         }
-    });
+    })();
 </script>
 @endif
 @endsection
