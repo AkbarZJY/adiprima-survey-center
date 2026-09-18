@@ -39,6 +39,11 @@
             -webkit-tap-highlight-color: transparent;
         }
 
+        html {
+            scroll-behavior: auto !important;
+            overflow-anchor: none;
+        }
+
         body {
             font-family: var(--font-family);
             background-color: var(--color-bg-light);
@@ -47,6 +52,7 @@
             display: flex;
             flex-direction: column;
             overflow-x: hidden;
+            overflow-anchor: none;
             text-rendering: optimizeLegibility;
             -webkit-font-smoothing: antialiased;
         }
@@ -528,9 +534,6 @@
 </head>
 <body>
 
-    <!-- Same-Page SPA Top Progress Bar Indicator -->
-    <div id="spaProgressBar" style="position: fixed; top: 0; left: 0; height: 3px; width: 0%; background: linear-gradient(90deg, #1EA1E5, #10B981); z-index: 99999; transition: width 0.2s ease, opacity 0.3s ease; opacity: 0; pointer-events: none;"></div>
-
     <!-- Top Navigation Bar -->
     <header class="top-navbar">
         <div class="navbar-left">
@@ -692,167 +695,6 @@
                 document.body.style.overflow = '';
             }
         }
-
-        // --- Same-Page Clean-URL SPA Router Engine ---
-        (function initSamePageSpa() {
-            const progressBar = document.getElementById('spaProgressBar');
-            const mainContent = document.getElementById('mainContentArea');
-            if (!mainContent) return;
-
-            function isSamePage(targetUrl) {
-                try {
-                    const current = new URL(window.location.href);
-                    const target = new URL(targetUrl, window.location.origin);
-                    if (target.origin !== current.origin) return false;
-                    const curPath = current.pathname.replace(/\/+$/, '') || '/';
-                    const tarPath = target.pathname.replace(/\/+$/, '') || '/';
-                    return curPath === tarPath;
-                } catch (e) {
-                    return false;
-                }
-            }
-
-            function startProgress() {
-                if (!progressBar) return;
-                progressBar.style.opacity = '1';
-                progressBar.style.width = '35%';
-                setTimeout(() => { 
-                    if (progressBar.style.opacity === '1') progressBar.style.width = '75%'; 
-                }, 100);
-            }
-
-            function finishProgress() {
-                if (!progressBar) return;
-                progressBar.style.width = '100%';
-                setTimeout(() => {
-                    progressBar.style.opacity = '0';
-                    setTimeout(() => { progressBar.style.width = '0%'; }, 200);
-                }, 80);
-            }
-
-            async function navigateSamePage(fetchUrl) {
-                startProgress();
-                try {
-                    const response = await fetch(fetchUrl, {
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest'
-                        }
-                    });
-
-                    if (!response.ok) {
-                        window.location.href = fetchUrl;
-                        return;
-                    }
-
-                    const htmlText = await response.text();
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(htmlText, 'text/html');
-
-                    const newContent = doc.getElementById('mainContentArea');
-                    if (!newContent) {
-                        window.location.href = fetchUrl;
-                        return;
-                    }
-
-                    if (doc.title) {
-                        document.title = doc.title;
-                    }
-
-                    // 1. Destroy existing Chart instances safely
-                    if (window.Chart) {
-                        document.querySelectorAll('canvas').forEach(canvas => {
-                            try {
-                                if (typeof Chart.getChart === 'function') {
-                                    const inst = Chart.getChart(canvas);
-                                    if (inst) inst.destroy();
-                                }
-                            } catch (e) {}
-                        });
-                    }
-
-                    // 2. Smoothly swap main content
-                    mainContent.style.opacity = '0.7';
-                    mainContent.innerHTML = newContent.innerHTML;
-                    mainContent.style.opacity = '1';
-
-                    // 3. Keep URL clean in address bar (e.g. http://127.0.0.1:8000/admin/dashboard without query params)
-                    const cleanPath = window.location.pathname;
-                    history.replaceState({ url: cleanPath }, doc.title || '', cleanPath);
-
-                    // 4. Safely execute any inline scripts or charts in the new content
-                    const scriptsToRun = [];
-                    newContent.querySelectorAll('script').forEach(s => scriptsToRun.push(s));
-                    doc.querySelectorAll('script').forEach(s => {
-                        if (!s.src && (s.textContent.includes('Chart') || s.textContent.includes('dimLabels') || s.textContent.includes('dimensionScores'))) {
-                            scriptsToRun.push(s);
-                        }
-                    });
-
-                    scriptsToRun.forEach(oldScript => {
-                        try {
-                            const newScript = document.createElement('script');
-                            Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
-                            newScript.textContent = oldScript.textContent;
-                            document.body.appendChild(newScript);
-                            setTimeout(() => {
-                                try {
-                                    if (newScript.parentNode) newScript.parentNode.removeChild(newScript);
-                                } catch (e) {}
-                            }, 100);
-                        } catch (errScript) {
-                            console.warn('Script notice:', errScript);
-                        }
-                    });
-
-                    window.scrollTo({ top: 0, behavior: 'instant' });
-                    finishProgress();
-                } catch (err) {
-                    console.error('Same-page SPA error:', err);
-                    window.location.href = fetchUrl;
-                }
-            }
-
-            // Intercept internal same-page clicks using capture phase
-            document.addEventListener('click', function(e) {
-                const link = e.target.closest('a');
-                if (!link) return;
-
-                const href = link.getAttribute('href');
-                if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:')) return;
-                if (link.target === '_blank' || link.hasAttribute('download') || link.getAttribute('data-no-spa') !== null) return;
-                if (href.includes('/export') || href.endsWith('.xlsx') || href.endsWith('.csv') || href.endsWith('.pdf')) return;
-
-                // Only intercept when clicking links on the SAME page
-                if (isSamePage(link.href)) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    navigateSamePage(link.href);
-                }
-                // When clicking a different page, normal full page reload occurs
-            }, true);
-
-            // Intercept GET forms on the SAME page (e.g. category/survey switchers, filters, search)
-            document.addEventListener('submit', function(e) {
-                const form = e.target;
-                if (form.method && form.method.toUpperCase() === 'GET' && !form.getAttribute('target') && !form.hasAttribute('data-no-spa')) {
-                    const action = form.action || window.location.href;
-                    if (isSamePage(action)) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const formData = new FormData(form);
-                        const params = new URLSearchParams();
-                        for (const [key, value] of formData.entries()) {
-                            if (value !== '') {
-                                params.append(key, value);
-                            }
-                        }
-                        const queryStr = params.toString();
-                        const targetUrl = action.split('?')[0] + (queryStr ? '?' + queryStr : '');
-                        navigateSamePage(targetUrl);
-                    }
-                }
-            }, true);
-        })();
     </script>
     @yield('scripts')
 </body>
