@@ -14,7 +14,7 @@ class SurveyFormController extends Controller
     public function showForm($slug)
     {
         $survey = Survey::where('slug', $slug)
-            ->with(['activePeriod', 'questions.dimensionModel'])
+            ->with(['activePeriod', 'questions.dimensionModel', 'ratingScale'])
             ->firstOrFail();
 
         $user = Auth::user();
@@ -147,12 +147,64 @@ class SurveyFormController extends Controller
 
         // Dynamic processing for all questions in this survey
         foreach ($survey->questions as $question) {
-            // Check position/status criteria if set on question
-            if ($question->applies_to_employment_status && strtolower($question->applies_to_employment_status) === 'tetap' && !$isPermanent) {
-                continue;
+            // Check criteria (Employment Status, Position, Gender)
+            if ($question->applies_to_employment_status) {
+                $targetEmp = strtolower(trim($question->applies_to_employment_status));
+                $respEmp = strtolower(trim($request->employment_status));
+
+                if ($targetEmp !== '' && !str_contains($targetEmp, 'semua')) {
+                    $empMatch = false;
+                    if (str_contains($targetEmp, 'outsourcing')) {
+                        $empMatch = str_contains($respEmp, 'outsourcing');
+                    } elseif (str_contains($targetEmp, 'kontrak')) {
+                        $empMatch = str_contains($respEmp, 'kontrak') && !str_contains($respEmp, 'outsourcing');
+                    } elseif (str_contains($targetEmp, 'tetap')) {
+                        $empMatch = str_contains($respEmp, 'tetap');
+                    } else {
+                        $empMatch = ($targetEmp === $respEmp);
+                    }
+
+                    if (!$empMatch) {
+                        continue;
+                    }
+                }
             }
-            if ($question->applies_to_positions && str_contains(strtolower($question->applies_to_positions), 'karu') && !$isLeadership) {
-                continue;
+
+            if ($question->applies_to_positions) {
+                $targetPosStr = strtolower(trim($question->applies_to_positions));
+                $respPos = strtolower(trim($request->position));
+
+                if ($targetPosStr !== '' && !str_contains($targetPosStr, 'semua')) {
+                    $targetPositions = array_filter(array_map('trim', explode(',', $targetPosStr)));
+                    $posMatch = in_array($respPos, $targetPositions);
+
+                    if (!$posMatch) {
+                        $leadershipList = ['general manager', 'manager', 'ast. manager', 'supervisor', 'ast. supervisor', 'karu'];
+                        foreach ($targetPositions as $tp) {
+                            if (str_contains($tp, 'karu ke atas') || str_contains($tp, 'leadership')) {
+                                if (in_array($respPos, $leadershipList)) {
+                                    $posMatch = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (!$posMatch) {
+                        continue;
+                    }
+                }
+            }
+
+            if ($question->applies_to_gender) {
+                $targetGender = strtolower(trim($question->applies_to_gender));
+                $respGender = strtolower(trim($request->gender));
+
+                if ($targetGender !== '' && !str_contains($targetGender, 'semua')) {
+                    if ($targetGender !== $respGender) {
+                        continue;
+                    }
+                }
             }
 
             // Handle Question Types

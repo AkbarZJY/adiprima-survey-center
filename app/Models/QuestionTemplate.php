@@ -11,6 +11,7 @@ class QuestionTemplate extends Model
 
     protected $fillable = [
         'dimension_id',
+        'section',
         'indicator_title',
         'question_text',
         'question_type',

@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\SurveyManagementController;
 use App\Http\Controllers\Admin\SurveyCategoryController;
 use App\Http\Controllers\Admin\DimensionController;
 use App\Http\Controllers\Admin\QuestionBankController;
+use App\Http\Controllers\Admin\RatingScaleController;
 
 // Auth Routes
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -67,5 +68,8 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/question-bank', [QuestionBankController::class, 'store'])->name('question-bank.store');
         Route::put('/question-bank/{id}', [QuestionBankController::class, 'update'])->name('question-bank.update');
         Route::delete('/question-bank/{id}', [QuestionBankController::class, 'destroy'])->name('question-bank.destroy');
+
+        // Rating Scales (Master Skala)
+        Route::resource('rating-scales', RatingScaleController::class)->except(['create', 'show', 'edit']);
     });
 });

@@ -54,6 +54,7 @@ class QuestionBankController extends Controller
     {
         $request->validate([
             'dimension_id' => 'nullable|exists:survey_dimensions,id',
+            'section' => 'nullable|string|max:10',
             'indicator_title' => 'nullable|string|max:255',
             'question_text' => 'required|string',
             'question_type' => 'required|string|in:dual_rating,single_rating,multiple_choice,essay',
@@ -93,6 +94,7 @@ class QuestionBankController extends Controller
 
         QuestionTemplate::create([
             'dimension_id' => $request->dimension_id,
+            'section' => $request->section ?: 'B',
             'indicator_title' => $request->indicator_title,
             'question_text' => $request->question_text,
             'question_type' => $request->question_type,
@@ -115,6 +117,7 @@ class QuestionBankController extends Controller
 
         $request->validate([
             'dimension_id' => 'nullable|exists:survey_dimensions,id',
+            'section' => 'nullable|string|max:10',
             'indicator_title' => 'nullable|string|max:255',
             'question_text' => 'required|string',
             'question_type' => 'required|string|in:dual_rating,single_rating,multiple_choice,essay',
@@ -156,6 +159,7 @@ class QuestionBankController extends Controller
 
         $template->update([
             'dimension_id' => $request->dimension_id,
+            'section' => $request->section ?: ($template->section ?: 'B'),
             'indicator_title' => $request->indicator_title,
             'question_text' => $request->question_text,
             'question_type' => $request->question_type,

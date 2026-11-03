@@ -256,9 +256,14 @@
                     <td style="padding: 1rem 1.15rem;">
                         @if($tpl->dimension)
                             <div style="display: flex; flex-direction: column; gap: 0.35rem; align-items: flex-start;">
-                                <span style="font-size: 0.7rem; font-weight: 800; color: #2563EB; background: #EFF6FF; padding: 0.15rem 0.5rem; border-radius: 6px; border: 1px solid #DBEAFE;">
-                                    <i class="bi {{ $tpl->dimension->category?->icon ?: 'bi-tag-fill' }}"></i> {{ $tpl->dimension->category?->name ?? 'Umum' }}
-                                </span>
+                                <div style="display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap;">
+                                    <span style="font-size: 0.7rem; font-weight: 800; color: #2563EB; background: #EFF6FF; padding: 0.15rem 0.5rem; border-radius: 6px; border: 1px solid #DBEAFE;">
+                                        <i class="bi {{ $tpl->dimension->category?->icon ?: 'bi-tag-fill' }}"></i> {{ $tpl->dimension->category?->name ?? 'Umum' }}
+                                    </span>
+                                    <span style="font-size: 0.7rem; font-weight: 800; color: #B45309; background: #FEF3C7; padding: 0.15rem 0.5rem; border-radius: 6px; border: 1px solid #FDE68A;">
+                                        Bagian {{ $tpl->section ?: 'B' }}
+                                    </span>
+                                </div>
                                 <span style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.775rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 6px; background: {{ $tpl->dimension->color ?? '#2563EB' }}15; color: {{ $tpl->dimension->color ?? '#2563EB' }};">
                                     <span style="width: 7px; height: 7px; border-radius: 50%; background: {{ $tpl->dimension->color ?? '#2563EB' }};"></span>
                                     {{ $tpl->dimension->name }}
@@ -408,8 +413,8 @@
                 </small>
             </div>
 
-            <!-- Step 2: Dimension & Indicator (Both Dropdowns) -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
+            <!-- Step 2: Dimension, Indicator & Section -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
                 <div>
                     <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 0.35rem;">
                         2. Dimensi Indikator *
@@ -427,6 +432,16 @@
                     </select>
                     <!-- Fallback Custom Indicator Input -->
                     <input type="text" name="indicator_title" id="createIndicatorCustom" placeholder="Ketik nama indikator..." style="display: none; width: 100%; margin-top: 0.35rem; padding: 0.55rem 0.75rem; border: 1px solid #93C5FD; border-radius: 8px; font-size: 0.85rem; background: #EFF6FF;">
+                </div>
+                <div>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 0.35rem;">
+                        4. Target Bagian (Section) *
+                    </label>
+                    <select name="section" id="createSection" required style="width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.85rem; background: #FFFFFF; font-weight: 600;">
+                        <option value="B">Bagian B (Dimensi Inti / Nilai)</option>
+                        <option value="C">Bagian C (Pertanyaan Umum & Saran)</option>
+                        <option value="A">Bagian A (Kepuasan / Responden)</option>
+                    </select>
                 </div>
             </div>
 
@@ -493,8 +508,9 @@
                     </label>
                     <select name="applies_to_employment_status" style="width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.85rem; background: #FFFFFF;">
                         <option value="">Semua Status Pegawai (Umum)</option>
-                        <option value="Pegawai Tetap">Pegawai Tetap</option>
-                        <option value="Pegawai Kontrak">Pegawai Kontrak</option>
+                        <option value="Tetap">Pegawai Tetap</option>
+                        <option value="Kontrak">Pegawai Kontrak</option>
+                        <option value="Outsourcing">Outsourcing</option>
                     </select>
                 </div>
 
@@ -580,8 +596,8 @@
                 </select>
             </div>
 
-            <!-- Step 2: Dimension & Indicator (Both Dropdowns) -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
+            <!-- Step 2: Dimension, Indicator & Section -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
                 <div>
                     <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 0.35rem;">
                         2. Dimensi Indikator *
@@ -599,6 +615,16 @@
                     </select>
                     <!-- Fallback Custom Indicator Input -->
                     <input type="text" name="indicator_title" id="editIndicatorCustom" placeholder="Ketik nama indikator..." style="display: none; width: 100%; margin-top: 0.35rem; padding: 0.55rem 0.75rem; border: 1px solid #93C5FD; border-radius: 8px; font-size: 0.85rem; background: #EFF6FF;">
+                </div>
+                <div>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 0.35rem;">
+                        4. Target Bagian (Section) *
+                    </label>
+                    <select name="section" id="editSection" required style="width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.85rem; background: #FFFFFF; font-weight: 600;">
+                        <option value="B">Bagian B (Dimensi Inti / Nilai)</option>
+                        <option value="C">Bagian C (Pertanyaan Umum & Saran)</option>
+                        <option value="A">Bagian A (Kepuasan / Responden)</option>
+                    </select>
                 </div>
             </div>
 
@@ -665,8 +691,9 @@
                     </label>
                     <select name="applies_to_employment_status" id="editEmpStatus" style="width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.85rem; background: #FFFFFF;">
                         <option value="">Semua Status Pegawai (Umum)</option>
-                        <option value="Pegawai Tetap">Pegawai Tetap</option>
-                        <option value="Pegawai Kontrak">Pegawai Kontrak</option>
+                        <option value="Tetap">Pegawai Tetap</option>
+                        <option value="Kontrak">Pegawai Kontrak</option>
+                        <option value="Outsourcing">Outsourcing</option>
                     </select>
                 </div>
 
@@ -1123,11 +1150,16 @@
             indCustom.value = '';
         }
 
+        document.getElementById('editSection').value = tpl.section || 'B';
         document.getElementById('editQText').value = tpl.question_text || '';
         document.getElementById('editQType').value = tpl.question_type || 'dual_rating';
         document.getElementById('editScale').value = tpl.rating_scale || 4;
         document.getElementById('editRequireReason').checked = !!tpl.require_reason_on_low_score;
-        document.getElementById('editEmpStatus').value = tpl.applies_to_employment_status || '';
+        let empVal = tpl.applies_to_employment_status || '';
+        if (empVal.toLowerCase().includes('outsourcing')) empVal = 'Outsourcing';
+        else if (empVal.toLowerCase().includes('kontrak')) empVal = 'Kontrak';
+        else if (empVal.toLowerCase().includes('tetap')) empVal = 'Tetap';
+        document.getElementById('editEmpStatus').value = empVal;
         document.getElementById('editGender').value = tpl.applies_to_gender || '';
         
         // Set Positions Checkboxes for Edit Modal

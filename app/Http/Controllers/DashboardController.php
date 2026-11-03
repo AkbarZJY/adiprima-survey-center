@@ -158,7 +158,10 @@ class DashboardController extends Controller
                               ->where('survey_dimensions.name', $dim);
                       });
                 })
-                ->selectRaw('AVG(reality_score) as avg_real, AVG(expectation_score) as avg_exp')
+                ->selectRaw('
+                    AVG(CASE WHEN reality_score >= 1 THEN reality_score ELSE NULL END) as avg_real,
+                    AVG(CASE WHEN expectation_score >= 1 THEN expectation_score ELSE NULL END) as avg_exp
+                ')
                 ->first();
 
             $realScore = round($stats->avg_real ?? 0, 2);
@@ -166,10 +169,20 @@ class DashboardController extends Controller
 
             $dimensionScores[$dim] = $realScore;
             $dimensionExpectationScores[$dim] = $expScore;
-            $dimensionGaps[$dim] = round($expScore - $realScore, 2);
+            $dimensionGaps[$dim] = round($realScore - $expScore, 2);
         }
 
-        $overallEngagementScore = count($dimensionScores) > 0 ? round(array_sum($dimensionScores) / count($dimensionScores), 2) : 0;
+        // Skor Rata-Rata Seluruh Dimensi (murni dari data valid >= 1, abaikan skor 0 / < 1)
+        $validRealDims = array_filter($dimensionScores, fn($s) => $s >= 1);
+        $overallRealScore = !empty($validRealDims) ? round(array_sum($validRealDims) / count($validRealDims), 2) : 0;
+
+        $validExpDims = array_filter($dimensionExpectationScores, fn($s) => $s >= 1);
+        $overallExpScore = !empty($validExpDims) ? round(array_sum($validExpDims) / count($validExpDims), 2) : 0;
+
+        $overallGap = round($overallRealScore - $overallExpScore, 2);
+        $overallEngagementScore = $overallRealScore;
+
+        $surveyScaleMax = $activeSurvey->ratingScale?->max_scale ?? $activeSurvey->rating_scale ?? 4;
 
         // Highest and Lowest Dimension
         $highestDimension = '-';
@@ -178,11 +191,11 @@ class DashboardController extends Controller
         $lowestScore = 999;
 
         foreach ($dimensionScores as $dim => $score) {
-            if ($score >= $highestScore) {
+            if ($score >= $highestScore && $score >= 1) {
                 $highestScore = $score;
                 $highestDimension = $dim;
             }
-            if ($score <= $lowestScore && $score > 0) {
+            if ($score <= $lowestScore && $score >= 1) {
                 $lowestScore = $score;
                 $lowestDimension = $dim;
             }
@@ -323,7 +336,8 @@ class DashboardController extends Controller
             'activeSurvey', 'period', 'tab', 'search', 'departmentFilter', 'positionFilter',
             'responses', 'questions', 'rekapData', 'totalTarget', 'totalFilled', 'overallProgressPct',
             'surveyDimensions', 'dimensionScores', 'dimensionExpectationScores', 'dimensionGaps',
-            'overallEngagementScore', 'highestDimension', 'highestScore', 'lowestDimension', 'lowestScore',
+            'overallEngagementScore', 'overallRealScore', 'overallExpScore', 'overallGap', 'surveyScaleMax',
+            'highestDimension', 'highestScore', 'lowestDimension', 'lowestScore',
             'lowScoreReasons', 'essayAnswers', 'feedbackByQuestion', 'allDepartments', 'allPositions'
         ));
     }

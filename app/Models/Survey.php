@@ -15,6 +15,8 @@ class Survey extends Model
         'slug',
         'category',
         'survey_category_id',
+        'rating_scale_id',
+        'rating_scale',
         'description',
         'icon',
         'start_date',
@@ -33,6 +35,11 @@ class Survey extends Model
     public function categoryModel()
     {
         return $this->belongsTo(SurveyCategory::class, 'survey_category_id');
+    }
+
+    public function ratingScale()
+    {
+        return $this->belongsTo(RatingScale::class, 'rating_scale_id');
     }
 
     public function scopeActive($query)

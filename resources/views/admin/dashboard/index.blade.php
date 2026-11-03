@@ -766,43 +766,164 @@
     <div class="analytics-grid">
         <!-- Summary Dimension Cards -->
         <div>
-            <div class="card-panel" style="margin-bottom: 1.5rem;">
-                <h3 style="font-size: 1.1rem; font-weight: 700; color: #0F172A; margin-bottom: 1rem;">
-                    Skor Rata-rata per Dimensi
-                </h3>
+            <!-- KARTU 1: SKOR RATA-RATA SELURUH DIMENSI -->
+            <div class="card-panel" style="margin-bottom: 1.25rem;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <div>
+                        <h3 style="font-size: 1.15rem; font-weight: 800; color: #0F172A; margin: 0 0 0.25rem 0;">
+                            Skor Rata-Rata Seluruh Dimensi
+                        </h3>
+                        <p style="font-size: 0.775rem; color: #64748B; margin: 0;">
+                            *Perhitungan rata-rata murni dari data valid (skor &ge; 1), mengabaikan nilai 0 / pertanyaan tidak berlaku.
+                        </p>
+                    </div>
+                    <span style="background: #F1F5F9; color: #475569; font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.6rem; border-radius: 6px; border: 1px solid #E2E8F0;">
+                        Skala 1 &ndash; {{ $surveyScaleMax ?? 4 }}
+                    </span>
+                </div>
 
-                <div style="display: flex; flex-direction: column; gap: 0.85rem;">
-                    @foreach($dimensionScores as $dim => $score)
-                    <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 0.85rem;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-                            <span style="font-weight: 700; font-size: 0.875rem; color: #334155;">{{ $dim }}</span>
-                            <span style="font-size: 1.15rem; font-weight: 800; color: var(--color-navy-primary);">
-                                {{ number_format($score, 2) }} <small style="font-size: 0.75rem; color: #64748B;">/ 4.00</small>
+                <!-- 2 Metric Cards: Harapan & Kenyataan -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; margin-bottom: 1rem;">
+                    <!-- Rata-rata Harapan -->
+                    <div style="background: #F0FDF4; border: 1.5px solid #BBF7D0; border-radius: 12px; padding: 1rem; position: relative;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.4rem;">
+                            <span style="font-size: 0.78rem; font-weight: 700; color: #166534; text-transform: uppercase; letter-spacing: 0.02em;">
+                                <i class="bi bi-star-fill" style="color: #10B981;"></i> Skor Harapan
                             </span>
+                            <span style="font-size: 0.7rem; background: #DCFCE7; color: #15803D; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 4px;">Expectation</span>
                         </div>
-                        <div class="progress-bar-bg">
-                            <div class="progress-bar-fill" style="width: {{ ($score / 4) * 100 }}%;"></div>
+                        <div style="display: flex; align-items: baseline; gap: 0.35rem; margin-bottom: 0.45rem;">
+                            <span style="font-size: 1.65rem; font-weight: 800; color: #14532D; line-height: 1;">
+                                {{ number_format($overallExpScore ?? 0, 2) }}
+                            </span>
+                            <span style="font-size: 0.8rem; color: #166534; font-weight: 600;">/ {{ number_format($surveyScaleMax ?? 4, 2) }}</span>
                         </div>
-                        <div style="display: flex; justify-content: space-between; margin-top: 0.35rem; font-size: 0.75rem; color: #64748B;">
-                            <span>Harapan: <b>{{ number_format($dimensionExpectationScores[$dim] ?? 0, 2) }}</b></span>
-                            <span>Gap: <b style="color: {{ ($dimensionGaps[$dim] ?? 0) > 0.5 ? '#DC2626' : '#16A34A' }};">{{ number_format($dimensionGaps[$dim] ?? 0, 2) }}</b></span>
+                        <div class="progress-bar-bg" style="background: #DCFCE7; height: 6px;">
+                            <div class="progress-bar-fill" style="background: #10B981; width: {{ ($surveyScaleMax ?? 4) > 0 ? min(100, (($overallExpScore ?? 0) / ($surveyScaleMax ?? 4)) * 100) : 0 }}%;"></div>
                         </div>
                     </div>
-                    @endforeach
+
+                    <!-- Rata-rata Kenyataan -->
+                    <div style="background: #EFF6FF; border: 1.5px solid #BFDBFE; border-radius: 12px; padding: 1rem; position: relative;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.4rem;">
+                            <span style="font-size: 0.78rem; font-weight: 700; color: #1E40AF; text-transform: uppercase; letter-spacing: 0.02em;">
+                                <i class="bi bi-check2-circle" style="color: #2563EB;"></i> Skor Kenyataan
+                            </span>
+                            <span style="font-size: 0.7rem; background: #DBEAFE; color: #1D4ED8; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 4px;">Perception</span>
+                        </div>
+                        <div style="display: flex; align-items: baseline; gap: 0.35rem; margin-bottom: 0.45rem;">
+                            <span style="font-size: 1.65rem; font-weight: 800; color: #1E3A8A; line-height: 1;">
+                                {{ number_format($overallRealScore ?? 0, 2) }}
+                            </span>
+                            <span style="font-size: 0.8rem; color: #1E40AF; font-weight: 600;">/ {{ number_format($surveyScaleMax ?? 4, 2) }}</span>
+                        </div>
+                        <div class="progress-bar-bg" style="background: #DBEAFE; height: 6px;">
+                            <div class="progress-bar-fill" style="background: #2563EB; width: {{ ($surveyScaleMax ?? 4) > 0 ? min(100, (($overallRealScore ?? 0) / ($surveyScaleMax ?? 4)) * 100) : 0 }}%;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gap Bar Summary -->
+                <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 0.75rem 1rem; display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="bi bi-arrows-expand" style="color: #64748B;"></i>
+                        <span style="font-size: 0.825rem; font-weight: 700; color: #334155;">Rata-Rata Gap Seluruh Dimensi:</span>
+                    </div>
+                    <div>
+                        <span style="font-size: 1rem; font-weight: 800; color: {{ ($overallGap ?? 0) < 0 ? '#DC2626' : '#2563EB' }};">
+                            {{ (($overallGap ?? 0) > 0 ? '+' : '') . number_format($overallGap ?? 0, 2) }}
+                        </span>
+                        <small style="font-size: 0.75rem; color: #64748B; margin-left: 0.25rem;">(Kenyataan &minus; Harapan)</small>
+                    </div>
+                </div>
+
+                <!-- Dimensi Tertinggi & Terendah -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                    <div style="background: #DEF7EC; border: 1px solid #84E1BC; border-radius: 10px; padding: 0.75rem 0.85rem;">
+                        <div style="font-size: 0.685rem; font-weight: 700; color: #03543F; text-transform: uppercase;">Dimensi Tertinggi</div>
+                        <div style="font-size: 0.95rem; font-weight: 800; color: #046C4E; margin: 0.15rem 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ $highestDimension }}">{{ $highestDimension }}</div>
+                        <div style="font-size: 0.775rem; color: #03543F;">Skor: <b>{{ number_format($highestScore, 2) }}</b></div>
+                    </div>
+
+                    <div style="background: #FEF2F2; border: 1px solid #FCA5A5; border-radius: 10px; padding: 0.75rem 0.85rem;">
+                        <div style="font-size: 0.685rem; font-weight: 700; color: #991B1B; text-transform: uppercase;">Dimensi Terendah</div>
+                        <div style="font-size: 0.95rem; font-weight: 800; color: #B91C1C; margin: 0.15rem 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ $lowestDimension }}">{{ $lowestDimension }}</div>
+                        <div style="font-size: 0.775rem; color: #991B1B;">Skor: <b>{{ number_format($lowestScore, 2) }}</b></div>
+                    </div>
                 </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
-                <div style="background: #DEF7EC; border: 1px solid #84E1BC; border-radius: 12px; padding: 1rem;">
-                    <div style="font-size: 0.7rem; font-weight: 700; color: #03543F; text-transform: uppercase;">Dimensi Tertinggi</div>
-                    <div style="font-size: 1.05rem; font-weight: 800; color: #046C4E; margin: 0.25rem 0;">{{ $highestDimension }}</div>
-                    <div style="font-size: 0.8rem; color: #03543F;">Skor: <b>{{ number_format($highestScore, 2) }}</b></div>
+            <!-- KARTU 2: TABEL RATA-RATA PER DIMENSI -->
+            <div class="card-panel">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem;">
+                    <h3 style="font-size: 1.05rem; font-weight: 800; color: #0F172A; margin: 0; display: flex; align-items: center; gap: 0.45rem;">
+                        <i class="bi bi-table" style="color: var(--color-navy-primary);"></i> Tabel Rata-Rata per Dimensi
+                    </h3>
+                    <span style="font-size: 0.75rem; color: #64748B; font-weight: 600;">
+                        {{ count($surveyDimensions) }} Dimensi
+                    </span>
                 </div>
 
-                <div style="background: #FEF2F2; border: 1px solid #FCA5A5; border-radius: 12px; padding: 1rem;">
-                    <div style="font-size: 0.7rem; font-weight: 700; color: #991B1B; text-transform: uppercase;">Dimensi Terendah</div>
-                    <div style="font-size: 1.05rem; font-weight: 800; color: #B91C1C; margin: 0.25rem 0;">{{ $lowestDimension }}</div>
-                    <div style="font-size: 0.8rem; color: #991B1B;">Skor: <b>{{ number_format($lowestScore, 2) }}</b></div>
+                <div style="overflow-x: auto; border: 1px solid #E2E8F0; border-radius: 10px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.825rem; text-align: left;">
+                        <thead>
+                            <tr style="background: #F8FAFC; color: #475569; border-bottom: 1.5px solid #E2E8F0;">
+                                <th style="padding: 0.65rem 0.85rem; font-weight: 700;">Dimensi</th>
+                                <th style="padding: 0.65rem 0.85rem; font-weight: 700; text-align: center; color: #166534; white-space: nowrap;">Skor Harapan</th>
+                                <th style="padding: 0.65rem 0.85rem; font-weight: 700; text-align: center; color: #1E40AF; white-space: nowrap;">Skor Kenyataan</th>
+                                <th style="padding: 0.65rem 0.85rem; font-weight: 700; text-align: center; white-space: nowrap;">Gap</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($surveyDimensions as $dim)
+                            @php
+                                $exp = $dimensionExpectationScores[$dim] ?? 0;
+                                $real = $dimensionScores[$dim] ?? 0;
+                                $gap = $dimensionGaps[$dim] ?? 0;
+                            @endphp
+                            <tr style="border-bottom: 1px solid #F1F5F9; transition: background 0.15s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='transparent'">
+                                <td style="padding: 0.65rem 0.85rem; font-weight: 700; color: #1E293B;">
+                                    {{ $dim }}
+                                </td>
+                                <td style="padding: 0.65rem 0.85rem; text-align: center;">
+                                    <span style="display: inline-block; background: #ECFDF5; color: #065F46; border: 1px solid #A7F3D0; font-weight: 700; padding: 0.15rem 0.55rem; border-radius: 6px; font-size: 0.8rem;">
+                                        {{ $exp >= 1 ? number_format($exp, 2) : '-' }}
+                                    </span>
+                                </td>
+                                <td style="padding: 0.65rem 0.85rem; text-align: center;">
+                                    <span style="display: inline-block; background: #EFF6FF; color: #1E40AF; border: 1px solid #BFDBFE; font-weight: 700; padding: 0.15rem 0.55rem; border-radius: 6px; font-size: 0.8rem;">
+                                        {{ $real >= 1 ? number_format($real, 2) : '-' }}
+                                    </span>
+                                </td>
+                                <td style="padding: 0.65rem 0.85rem; text-align: center;">
+                                    @if($exp >= 1 && $real >= 1)
+                                        <span style="display: inline-block; font-weight: 800; font-size: 0.8rem; padding: 0.15rem 0.55rem; border-radius: 6px; background: {{ $gap < 0 ? '#FEF2F2' : '#EFF6FF' }}; color: {{ $gap < 0 ? '#DC2626' : '#2563EB' }}; border: 1px solid {{ $gap < 0 ? '#FECACA' : '#BFDBFE' }};">
+                                            {{ ($gap > 0 ? '+' : '') . number_format($gap, 2) }}
+                                        </span>
+                                    @else
+                                        <span style="color: #94A3B8;">-</span>
+                                    @endif
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                        <tfoot style="background: #F8FAFC; border-top: 2px solid #CBD5E1; font-weight: 800;">
+                            <tr>
+                                <td style="padding: 0.75rem 0.85rem; color: #0F172A; font-size: 0.825rem;">
+                                    Rata-Rata Seluruh Dimensi
+                                </td>
+                                <td style="padding: 0.75rem 0.85rem; text-align: center; color: #166534; font-size: 0.85rem;">
+                                    {{ ($overallExpScore ?? 0) >= 1 ? number_format($overallExpScore, 2) : '-' }}
+                                </td>
+                                <td style="padding: 0.75rem 0.85rem; text-align: center; color: #1E40AF; font-size: 0.85rem;">
+                                    {{ ($overallRealScore ?? 0) >= 1 ? number_format($overallRealScore, 2) : '-' }}
+                                </td>
+                                <td style="padding: 0.75rem 0.85rem; text-align: center; font-size: 0.85rem; color: {{ ($overallGap ?? 0) < 0 ? '#DC2626' : '#2563EB' }}; font-weight: 800;">
+                                    {{ (($overallGap ?? 0) > 0 ? '+' : '') . number_format($overallGap ?? 0, 2) }}
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
                 </div>
             </div>
         </div>
@@ -1019,8 +1140,8 @@
                     scales: {
                         r: {
                             min: 0,
-                            max: 4,
-                            ticks: { stepSize: 1 }
+                            max: {{ $surveyScaleMax ?? 4 }},
+                            ticks: { stepSize: {{ ($surveyScaleMax ?? 4) > 5 ? 2 : 1 }} }
                         }
                     },
                     plugins: {
@@ -1061,8 +1182,8 @@
                     scales: {
                         y: {
                             min: 0,
-                            max: 4,
-                            ticks: { stepSize: 1 }
+                            max: {{ $surveyScaleMax ?? 4 }},
+                            ticks: { stepSize: {{ ($surveyScaleMax ?? 4) > 5 ? 2 : 1 }} }
                         }
                     },
                     plugins: {

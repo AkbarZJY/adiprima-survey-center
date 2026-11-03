@@ -36,6 +36,13 @@ class SurveyQuestion extends Model
         'options_json' => 'array',
     ];
 
+    protected static function booted()
+    {
+        static::deleting(function ($question) {
+            $question->answers()->delete();
+        });
+    }
+
     public function survey()
     {
         return $this->belongsTo(Survey::class);

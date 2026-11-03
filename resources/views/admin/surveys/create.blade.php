@@ -82,6 +82,35 @@
                 </div>
             </div>
 
+            <!-- Rating Scale Selection -->
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 1.25rem; margin-bottom: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                    <h4 style="font-size: 0.95rem; font-weight: 800; color: var(--color-navy-primary); margin: 0; display: flex; align-items: center; gap: 0.4rem;">
+                        <i class="bi bi-star-half" style="color: #F59E0B;"></i> Skala Rating Kuesioner *
+                    </h4>
+                    <a href="{{ route('admin.rating-scales.index') }}" target="_blank" style="font-size: 0.75rem; color: #2563EB; text-decoration: none; font-weight: 600;">
+                        <i class="bi bi-gear"></i> Kelola Master Skala
+                    </a>
+                </div>
+                <p style="font-size: 0.8rem; color: #64748B; margin-bottom: 0.85rem;">
+                    Pilih rentang skala nilai yang digunakan pada kuesioner ini (misal: 1-4, 1-5, atau 1-10). Skala ini berlaku seragam untuk seluruh soal bertipe rating di kuesioner ini.
+                </p>
+
+                <select name="rating_scale_id" id="ratingScaleSelect" onchange="updateScalePreview(this)" required style="width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--color-border); border-radius: 8px; font-size: 0.95rem; background: #FFF; font-weight: 600; cursor: pointer;">
+                    @foreach($ratingScales as $scale)
+                        <option value="{{ $scale->id }}" 
+                                data-points="{{ json_encode($scale->options_json) }}"
+                                {{ old('rating_scale_id', $ratingScales->where('is_default', true)->first()?->id ?? $ratingScales->first()?->id) == $scale->id ? 'selected' : '' }}>
+                            {{ $scale->name }} (Rentang 1 s/d {{ $scale->max_score }}) {{ $scale->is_default ? '— [Default Sistem]' : '' }}
+                        </option>
+                    @endforeach
+                </select>
+
+                <!-- Live preview of scale labels -->
+                <div id="scalePreviewBox" style="margin-top: 0.75rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
+                </div>
+            </div>
+
             <!-- Active Dates Section -->
             <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 1.25rem; margin-bottom: 1.5rem;">
                 <h4 style="font-size: 0.95rem; font-weight: 800; color: var(--color-navy-primary); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.4rem;">
@@ -157,11 +186,34 @@
         }
     }
 
+    function updateScalePreview(select) {
+        const previewBox = document.getElementById('scalePreviewBox');
+        if (!previewBox) return;
+        previewBox.innerHTML = '';
+
+        const selectedOption = select.options[select.selectedIndex];
+        if (!selectedOption) return;
+
+        try {
+            const points = JSON.parse(selectedOption.getAttribute('data-points') || '[]');
+            points.forEach(pt => {
+                const badge = document.createElement('div');
+                badge.style.cssText = 'background: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 6px; padding: 0.25rem 0.6rem; font-size: 0.775rem; display: flex; align-items: center; gap: 0.35rem;';
+                badge.innerHTML = `<span style="display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; background:#2563EB; color:#FFF; font-weight:700; font-size:0.675rem;">${pt.score}</span> <span style="font-weight:600; color:#334155;">${pt.label}</span>`;
+                previewBox.appendChild(badge);
+            });
+        } catch (e) {
+            console.error('Failed to parse points', e);
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         const select = document.getElementById('categorySelect');
         if (select) toggleCustomCategory(select);
         const iconSelect = document.getElementById('surveyIconSelect');
         if (iconSelect) onSurveyIconChange(iconSelect);
+        const scaleSelect = document.getElementById('ratingScaleSelect');
+        if (scaleSelect) updateScalePreview(scaleSelect);
     });
 </script>
 @endsection

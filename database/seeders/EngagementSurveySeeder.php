@@ -1095,6 +1095,7 @@ class EngagementSurveySeeder extends Seeder
                 ],
                 [
                     'dimension_id' => $q['dimension_id'],
+                    'section' => $q['section'],
                     'question_type' => $q['question_type'],
                     'rating_scale' => $q['rating_scale'],
                     'require_reason_on_low_score' => $q['require_reason_on_low_score'],
@@ -1136,11 +1137,110 @@ class EngagementSurveySeeder extends Seeder
             }
         }
 
+        // Seed dedicated Bank Soal Templates for Survey Budaya Kerja
+        $budayaBankTemplates = [
+            [
+                'dimension_id' => $dimBudaya->id,
+                'section' => 'B',
+                'indicator_title' => 'Penerapan Core Values AKHLAK',
+                'question_text' => 'Nilai-nilai utama perusahaan (AKHLAK: Amanah, Kompeten, Harmonis, Loyal, Adaptif, Kolaboratif) telah dipahami dan diterapkan secara konsisten dalam aktivitas kerja harian.',
+                'question_type' => 'dual_rating',
+                'rating_scale' => 4,
+                'require_reason_on_low_score' => true,
+                'low_score_threshold' => 2,
+                'order' => 1,
+            ],
+            [
+                'dimension_id' => $dimBudaya->id,
+                'section' => 'B',
+                'indicator_title' => 'Integritas & Etika Kerja',
+                'question_text' => 'Karyawan dan pimpinan di lingkungan unit kerja saya senantiasa menjunjung tinggi transparansi, kejujuran, dan kepatuhan terhadap kode etik perusahaan.',
+                'question_type' => 'dual_rating',
+                'rating_scale' => 4,
+                'require_reason_on_low_score' => true,
+                'low_score_threshold' => 2,
+                'order' => 2,
+            ],
+            [
+                'dimension_id' => $dimBudaya->id,
+                'section' => 'B',
+                'indicator_title' => 'Disiplin & Komitmen Kinerja',
+                'question_text' => 'Kedisiplinan terhadap jam kerja, pemenuhan target, dan kepatuhan terhadap regulasi perusahaan dijalankan dengan penuh kesadaran dan komitmen tinggi.',
+                'question_type' => 'dual_rating',
+                'rating_scale' => 4,
+                'require_reason_on_low_score' => true,
+                'low_score_threshold' => 2,
+                'order' => 3,
+            ],
+            [
+                'dimension_id' => $dimK3->id,
+                'section' => 'B',
+                'indicator_title' => 'Kepatuhan Terhadap SOP K3 & Safety',
+                'question_text' => 'Seluruh standar operasional keselamatan kerja (SOP K3), penggunaan APD lengkap, dan prosedur tanggap darurat dipatuhi secara ketat di area kerja.',
+                'question_type' => 'dual_rating',
+                'rating_scale' => 4,
+                'require_reason_on_low_score' => true,
+                'low_score_threshold' => 2,
+                'order' => 4,
+            ],
+            [
+                'dimension_id' => $dimK3->id,
+                'section' => 'B',
+                'indicator_title' => 'Penerapan Budaya 5R di Lingkungan Kerja',
+                'question_text' => 'Kebersihan, kerapian fasilitas kerja, dan pengelolaan area operasional pabrik dijaga secara konsisten melalui pembiasaan budaya 5R.',
+                'question_type' => 'dual_rating',
+                'rating_scale' => 4,
+                'require_reason_on_low_score' => true,
+                'low_score_threshold' => 2,
+                'order' => 5,
+            ],
+            [
+                'dimension_id' => $dimK3->id,
+                'section' => 'B',
+                'indicator_title' => 'Kepedulian K3 Antar Rekan Kerja',
+                'question_text' => 'Rekan kerja dan atasan proaktif saling mengingatkan terhadap potensi bahaya/kondisi tidak aman serta segera melaporkan potensi insiden.',
+                'question_type' => 'dual_rating',
+                'rating_scale' => 4,
+                'require_reason_on_low_score' => true,
+                'low_score_threshold' => 2,
+                'order' => 6,
+            ],
+            [
+                'dimension_id' => $dimBudaya->id,
+                'section' => 'C',
+                'indicator_title' => 'Kesiapan Transformasi Budaya',
+                'question_text' => 'Dari skala 1-4, seberapa siap Anda dan unit kerja Anda dalam mendukung transformasi budaya kerja unggul PT Adiprima Suraprinta?',
+                'question_type' => 'single_rating',
+                'rating_scale' => 4,
+                'require_reason_on_low_score' => true,
+                'low_score_threshold' => 2,
+                'order' => 7,
+            ],
+            [
+                'dimension_id' => $dimBudaya->id,
+                'section' => 'C',
+                'indicator_title' => 'Saran & Aspirasi Penguatan Budaya',
+                'question_text' => 'Tuliskan masukan atau usulan konkret untuk memperkuat penerapan budaya kerja AKHLAK dan keselamatan operasional di PT Adiprima Suraprinta.',
+                'question_type' => 'essay',
+                'rating_scale' => 4,
+                'require_reason_on_low_score' => false,
+                'low_score_threshold' => 2,
+                'order' => 8,
+            ],
+        ];
+
+        foreach ($budayaBankTemplates as $bTpl) {
+            QuestionTemplate::updateOrCreate(
+                ['question_text' => $bTpl['question_text']],
+                $bTpl
+            );
+        }
+
         // Seed Customer Satisfaction Questions
         $csQuestions = [
             [
-                'dimension_id' => $dimGeneral->id,
-                'dimension' => 'Kepuasan Layanan',
+                'dimension_id' => $dimKualitas->id,
+                'dimension' => 'Kualitas Produk & Layanan',
                 'section' => 'A',
                 'question_number' => 1,
                 'indicator_title' => 'Kualitas Produk & Konsistensi Mutu',
@@ -1152,8 +1252,8 @@ class EngagementSurveySeeder extends Seeder
                 'order' => 1,
             ],
             [
-                'dimension_id' => $dimGeneral->id,
-                'dimension' => 'Ketepatan Pengiriman',
+                'dimension_id' => $dimKualitas->id,
+                'dimension' => 'Kualitas Produk & Layanan',
                 'section' => 'A',
                 'question_number' => 2,
                 'indicator_title' => 'Ketepatan Waktu Pengiriman (On-Time Delivery)',
@@ -1165,8 +1265,8 @@ class EngagementSurveySeeder extends Seeder
                 'order' => 2,
             ],
             [
-                'dimension_id' => $dimGeneral->id,
-                'dimension' => 'Responsiveness & Pelayanan',
+                'dimension_id' => $dimPelayanan->id,
+                'dimension' => 'Pelayanan & Komunikasi',
                 'section' => 'A',
                 'question_number' => 3,
                 'indicator_title' => 'Kecepatan Respon Komunikasi & Komplain',
@@ -1178,8 +1278,8 @@ class EngagementSurveySeeder extends Seeder
                 'order' => 3,
             ],
             [
-                'dimension_id' => $dimGeneral->id,
-                'dimension' => 'Saran & Masukan',
+                'dimension_id' => $dimPelayanan->id,
+                'dimension' => 'Pelayanan & Komunikasi',
                 'section' => 'B',
                 'question_number' => 1,
                 'indicator_title' => 'Uraian Saran Perbaikan Layanan',
@@ -1200,6 +1300,7 @@ class EngagementSurveySeeder extends Seeder
                 ],
                 [
                     'dimension_id' => $cq['dimension_id'],
+                    'section' => $cq['section'],
                     'question_type' => $cq['question_type'],
                     'rating_scale' => $cq['rating_scale'],
                     'require_reason_on_low_score' => $cq['require_reason_on_low_score'],

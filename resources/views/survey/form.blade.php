@@ -537,7 +537,7 @@
 
                 <div class="form-group-item">
                     <label>2. Jenis Kelamin *</label>
-                    <select name="gender" required>
+                    <select name="gender" id="gender" onchange="evaluateQuestionEligibility()" required>
                         <option value="Laki-laki" {{ (old('gender', $user->gender) == 'Laki-laki') ? 'selected' : '' }}>1. Laki-laki</option>
                         <option value="Perempuan" {{ (old('gender', $user->gender) == 'Perempuan') ? 'selected' : '' }}>2. Perempuan</option>
                     </select>
@@ -559,7 +559,7 @@
 
                 <div class="form-group-item">
                     <label>5. Status Kepegawaian *</label>
-                    <select name="employment_status" id="employment_status" onchange="evaluateBonusEligibility()" required>
+                    <select name="employment_status" id="employment_status" onchange="evaluateQuestionEligibility()" required>
                         <option value="Tetap" {{ (old('employment_status', $user->employment_status) == 'Tetap') ? 'selected' : '' }}>1. Tetap</option>
                         <option value="Kontrak" {{ (old('employment_status', $user->employment_status) == 'Kontrak') ? 'selected' : '' }}>2. Kontrak</option>
                         <option value="Outsourcing" {{ (old('employment_status', $user->employment_status) == 'Outsourcing') ? 'selected' : '' }}>3. Outsourcing</option>
@@ -586,7 +586,7 @@
 
                 <div class="form-group-item">
                     <label>8. Jabatan *</label>
-                    <select name="position" id="position" onchange="evaluateBonusEligibility()" required>
+                    <select name="position" id="position" onchange="evaluateQuestionEligibility()" required>
                         @foreach($positions as $index => $pos)
                             <option value="{{ $pos }}" {{ (old('position', $user->position) == $pos) ? 'selected' : '' }}>{{ $index + 1 }}. {{ $pos }}</option>
                         @endforeach
@@ -606,14 +606,23 @@
 
         <!-- STEP 3: BAGIAN B - DIMENSI UTAMA & PERTANYAAN -->
         <div class="form-card step-panel" id="step3" style="display: none;">
+            @php
+                $surveyScaleMax = $survey->rating_scale ?? 4;
+                $scaleLabels = [];
+                if ($survey->ratingScale && is_array($survey->ratingScale->options_json)) {
+                    foreach ($survey->ratingScale->options_json as $item) {
+                        $scaleLabels[$item['score']] = $item['label'];
+                    }
+                }
+            @endphp
             <div style="margin-bottom: 1.25rem;">
                 <h2 style="font-size: 1.25rem; font-weight: 800; color: #0F172A; margin-bottom: 0.25rem;">
                     BAGIAN B. PENILAIAN TINGKAT HARAPAN DAN KENYATAAN
                 </h2>
                 <p style="color: #64748B; font-size: 0.825rem; line-height: 1.5;">
-                    Nilai setiap butir pada skala 1–4:<br>
-                    <strong style="color: #2563EB;">Harapan: 1 (Sangat Tidak Diharapkan) &ndash; 4 (Sangat Diharapkan)</strong><br>
-                    <strong style="color: var(--color-navy-primary);">Kenyataan: 1 (Sangat Tidak Setuju) &ndash; 4 (Sangat Setuju)</strong>
+                    Nilai setiap butir pada skala 1–{{ $surveyScaleMax }} ({{ $survey->ratingScale?->name ?? 'Standar' }}):<br>
+                    <strong style="color: #2563EB;">Harapan: 1 s/d {{ $surveyScaleMax }}</strong><br>
+                    <strong style="color: var(--color-navy-primary);">Kenyataan: 1 ({{ $scaleLabels[1] ?? 'Sangat Rendah' }}) &ndash; {{ $surveyScaleMax }} ({{ $scaleLabels[$surveyScaleMax] ?? 'Sangat Tinggi' }})</strong>
                 </p>
             </div>
 
@@ -627,7 +636,11 @@
                     </div>
                 @endif
 
-                <div class="question-block" id="q_block_{{ $question->id }}" data-qnum="{{ $question->question_number }}">
+                <div class="question-block" id="q_block_{{ $question->id }}"
+                     data-qnum="{{ $question->question_number }}"
+                     data-applies-emp="{{ $question->applies_to_employment_status ?? '' }}"
+                     data-applies-pos="{{ $question->applies_to_positions ?? '' }}"
+                     data-applies-gender="{{ $question->applies_to_gender ?? '' }}">
                     <div style="display: flex; gap: 0.6rem; margin-bottom: 0.75rem; align-items: flex-start;">
                         <span style="background: var(--color-navy-primary); color: #FFF; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 800; flex-shrink: 0; margin-top: 0.1rem;">
                             {{ $question->question_number }}
@@ -672,15 +685,17 @@
                     @elseif($question->question_type === 'single_rating')
                         <div class="sub-rating-card reality-card">
                             <label style="font-size: 0.8rem; font-weight: 800; color: var(--color-navy-primary); display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.4rem;">
-                                <i class="bi bi-star-fill" style="color: #10B981;"></i> Penilaian (Skala 1 - {{ $question->rating_scale ?? 4 }}):
+                                <i class="bi bi-star-fill" style="color: #10B981;"></i> Penilaian (Skala 1 - {{ $surveyScaleMax }}):
                             </label>
                             <div class="scale-options">
-                                @php $scaleMax = $question->rating_scale ?? 4; @endphp
-                                @for($s = 1; $s <= $scaleMax; $s++)
+                                @for($s = 1; $s <= $surveyScaleMax; $s++)
                                 <label class="scale-btn">
                                     <input type="radio" name="reality_{{ $question->id }}" value="{{ $s }}" @if($question->require_reason_on_low_score) onchange="handleRealityChange({{ $question->id }}, {{ $s }}, {{ $question->low_score_threshold ?? 2 }})" @endif required>
                                     <span class="scale-label">
                                         <span class="scale-num">{{ $s }}</span>
+                                        @if(isset($scaleLabels[$s]))
+                                            <span class="scale-text">{{ $scaleLabels[$s] }}</span>
+                                        @endif
                                     </span>
                                 </label>
                                 @endfor
@@ -709,15 +724,24 @@
                                 <i class="bi bi-star-fill" style="color: #2563EB;"></i> a) Tingkat Harapan (Expectation):
                             </label>
                             <div class="scale-options">
-                                @foreach([1 => 'Sangat Tidak Diharapkan', 2 => 'Tidak Diharapkan', 3 => 'Diharapkan', 4 => 'Sangat Diharapkan'] as $val => $txt)
+                                @php
+                                    $expLabels = [
+                                        1 => 'Sangat Tidak Diharapkan',
+                                        2 => 'Tidak Diharapkan',
+                                        3 => $surveyScaleMax == 5 ? 'Cukup Diharapkan' : 'Diharapkan',
+                                        4 => $surveyScaleMax == 5 ? 'Diharapkan' : 'Sangat Diharapkan',
+                                        5 => 'Sangat Diharapkan'
+                                    ];
+                                @endphp
+                                @for($s = 1; $s <= $surveyScaleMax; $s++)
                                 <label class="scale-btn">
-                                    <input type="radio" name="expectation_{{ $question->id }}" value="{{ $val }}" required>
+                                    <input type="radio" name="expectation_{{ $question->id }}" value="{{ $s }}" required>
                                     <span class="scale-label">
-                                        <span class="scale-num">{{ $val }}</span>
-                                        <span class="scale-text">{{ $txt }}</span>
+                                        <span class="scale-num">{{ $s }}</span>
+                                        <span class="scale-text">{{ $expLabels[$s] ?? "Skala $s" }}</span>
                                     </span>
                                 </label>
-                                @endforeach
+                                @endfor
                             </div>
                         </div>
 
@@ -727,15 +751,15 @@
                                 <i class="bi bi-check2-circle" style="color: #10B981;"></i> b) Tingkat Kenyataan (Perception):
                             </label>
                             <div class="scale-options">
-                                @foreach([1 => 'Sangat Tidak Setuju', 2 => 'Tidak Setuju', 3 => 'Setuju', 4 => 'Sangat Setuju'] as $val => $txt)
+                                @for($s = 1; $s <= $surveyScaleMax; $s++)
                                 <label class="scale-btn">
-                                    <input type="radio" name="reality_{{ $question->id }}" value="{{ $val }}" @if($question->require_reason_on_low_score) onchange="handleRealityChange({{ $question->id }}, {{ $val }}, {{ $question->low_score_threshold ?? 2 }})" @endif required>
+                                    <input type="radio" name="reality_{{ $question->id }}" value="{{ $s }}" @if($question->require_reason_on_low_score) onchange="handleRealityChange({{ $question->id }}, {{ $s }}, {{ $question->low_score_threshold ?? 2 }})" @endif required>
                                     <span class="scale-label">
-                                        <span class="scale-num">{{ $val }}</span>
-                                        <span class="scale-text">{{ $txt }}</span>
+                                        <span class="scale-num">{{ $s }}</span>
+                                        <span class="scale-text">{{ $scaleLabels[$s] ?? "Nilai $s" }}</span>
                                     </span>
                                 </label>
-                                @endforeach
+                                @endfor
                             </div>
                         </div>
 
@@ -777,7 +801,11 @@
             </div>
 
             @foreach($sectionCQuestions as $question)
-                <div class="question-block" id="q_block_{{ $question->id }}">
+                <div class="question-block" id="q_block_{{ $question->id }}"
+                     data-qnum="C{{ $question->question_number }}"
+                     data-applies-emp="{{ $question->applies_to_employment_status ?? '' }}"
+                     data-applies-pos="{{ $question->applies_to_positions ?? '' }}"
+                     data-applies-gender="{{ $question->applies_to_gender ?? '' }}">
                     <div style="display: flex; gap: 0.6rem; margin-bottom: 0.75rem; align-items: flex-start;">
                         <span style="background: var(--color-navy-primary); color: #FFF; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 800; flex-shrink: 0; margin-top: 0.1rem;">
                             C{{ $question->question_number }}
@@ -899,29 +927,104 @@
         if (fillBar) fillBar.style.width = `${pct}%`;
 
         currentStep = step;
+        if (step >= 3) {
+            evaluateQuestionEligibility();
+        }
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    function evaluateBonusEligibility() {
-        const empStatus = document.getElementById('employment_status').value;
-        const position = document.getElementById('position').value;
-        const leadershipPositions = ['General Manager', 'Manager', 'Ast. Manager', 'Supervisor', 'Ast. Supervisor', 'Karu'];
-        
-        const isBonusEligible = (empStatus === 'Tetap' && leadershipPositions.includes(position));
-        const bonusBlock = document.querySelector('[data-qnum="6"]');
-        
-        if (bonusBlock) {
-            if (isBonusEligible) {
-                bonusBlock.style.display = 'block';
-                bonusBlock.querySelectorAll('input[type="radio"]').forEach(r => r.required = true);
+    function evaluateQuestionEligibility() {
+        const empStatusEl = document.getElementById('employment_status');
+        const posEl = document.getElementById('position');
+        const genderEl = document.getElementById('gender');
+
+        const userEmp = empStatusEl ? empStatusEl.value.trim().toLowerCase() : '';
+        const userPos = posEl ? posEl.value.trim().toLowerCase() : '';
+        const userGender = genderEl ? genderEl.value.trim().toLowerCase() : '';
+
+        const leadershipList = ['general manager', 'manager', 'ast. manager', 'supervisor', 'ast. supervisor', 'karu'];
+
+        document.querySelectorAll('.question-block').forEach(block => {
+            const appliesEmp = (block.getAttribute('data-applies-emp') || '').trim().toLowerCase();
+            const appliesPos = (block.getAttribute('data-applies-pos') || '').trim().toLowerCase();
+            const appliesGender = (block.getAttribute('data-applies-gender') || '').trim().toLowerCase();
+            const qNum = (block.getAttribute('data-qnum') || '').trim();
+
+            let empMatch = true;
+            if (appliesEmp && !appliesEmp.includes('semua')) {
+                if (appliesEmp.includes('outsourcing')) {
+                    empMatch = userEmp.includes('outsourcing');
+                } else if (appliesEmp.includes('kontrak')) {
+                    empMatch = userEmp.includes('kontrak') && !userEmp.includes('outsourcing');
+                } else if (appliesEmp.includes('tetap')) {
+                    empMatch = userEmp.includes('tetap');
+                } else {
+                    empMatch = (appliesEmp === userEmp);
+                }
+            }
+
+            let posMatch = true;
+            if (appliesPos && !appliesPos.includes('semua')) {
+                const positions = appliesPos.split(',').map(p => p.trim());
+                posMatch = positions.includes(userPos);
+                if (!posMatch) {
+                    for (let p of positions) {
+                        if (p.includes('karu ke atas') || p.includes('leadership')) {
+                            if (leadershipList.includes(userPos)) {
+                                posMatch = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            let genderMatch = true;
+            if (appliesGender && !appliesGender.includes('semua')) {
+                genderMatch = (appliesGender === userGender);
+            }
+
+            // Legacy fallback for Question 6 if no explicit attributes set
+            let legacyMatch = true;
+            if (qNum === '6' && !appliesEmp && !appliesPos) {
+                legacyMatch = (userEmp === 'tetap' && leadershipList.includes(userPos));
+            }
+
+            const isEligible = empMatch && posMatch && genderMatch && legacyMatch;
+
+            if (isEligible) {
+                block.style.display = 'block';
+                // Restore required attributes for rating / choice inputs
+                const expInputs = block.querySelectorAll('input[name^="expectation_"]');
+                const realInputs = block.querySelectorAll('input[name^="reality_"]');
+                const choiceInputs = block.querySelectorAll('input[name^="choice_"]');
+                const generalInputs = block.querySelectorAll('input[name^="general_"]');
+                const essayInput = block.querySelector('textarea[name^="essay_"]');
+
+                if (expInputs.length > 0) expInputs.forEach(r => r.required = true);
+                if (realInputs.length > 0) realInputs.forEach(r => r.required = true);
+                if (choiceInputs.length > 0) choiceInputs.forEach(r => r.required = true);
+                if (generalInputs.length > 0) generalInputs.forEach(r => r.required = true);
+                if (essayInput) essayInput.required = true;
             } else {
-                bonusBlock.style.display = 'none';
-                bonusBlock.querySelectorAll('input[type="radio"]').forEach(r => {
+                block.style.display = 'none';
+                // Remove required and reset values
+                block.querySelectorAll('input[type="radio"]').forEach(r => {
                     r.required = false;
                     r.checked = false;
                 });
+                block.querySelectorAll('textarea').forEach(t => {
+                    t.required = false;
+                    t.value = '';
+                });
+                const reasonBox = block.querySelector('.reason-box');
+                if (reasonBox) reasonBox.style.display = 'none';
             }
-        }
+        });
+    }
+
+    function evaluateBonusEligibility() {
+        evaluateQuestionEligibility();
     }
 
     function handleRealityChange(qId, val, threshold = 2) {
@@ -995,6 +1098,24 @@
                         return false;
                     }
                 }
+            } else if (realInputs.length > 0) {
+                const realChecked = block.querySelector('input[name^="reality_"]:checked');
+                if (!realChecked) {
+                    alert('Silakan berikan penilaian untuk butir pertanyaan ini.');
+                    block.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    return false;
+                }
+
+                const qId = block.id.replace('q_block_', '');
+                const reasonBox = document.getElementById('reason_box_' + qId);
+                const reasonText = document.getElementById('reason_text_' + qId);
+                if (reasonBox && reasonBox.style.display !== 'none') {
+                    if (!reasonText || !reasonText.value.trim()) {
+                        alert('Silakan isi kolom Alasan untuk pertanyaan dengan nilai yang memerlukan alasan.');
+                        if (reasonText) reasonText.focus();
+                        return false;
+                    }
+                }
             } else if (choiceInputs.length > 0) {
                 const choiceChecked = block.querySelector('input[name^="choice_"]:checked');
                 if (!choiceChecked) {
@@ -1013,8 +1134,70 @@
         return true;
     }
 
+    function validateFullForm() {
+        if (!validateStep2()) {
+            goToStep(2);
+            return false;
+        }
+        if (!validateStep3()) {
+            goToStep(3);
+            return false;
+        }
+
+        const step4 = document.getElementById('step4');
+        if (step4) {
+            const step4Blocks = step4.querySelectorAll('.question-block');
+            for (let block of step4Blocks) {
+                if (block.style.display === 'none') continue;
+
+                const choiceInputs = block.querySelectorAll('input[name^="choice_"]');
+                const generalInputs = block.querySelectorAll('input[name^="general_"]');
+                const reasonBox = block.querySelector('.reason-box');
+
+                if (choiceInputs.length > 0) {
+                    const choiceChecked = block.querySelector('input[name^="choice_"]:checked');
+                    if (!choiceChecked) {
+                        alert('Silakan pilih salah satu jawaban untuk pertanyaan pada Bagian C.');
+                        goToStep(4);
+                        block.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        return false;
+                    }
+                } else if (generalInputs.length > 0) {
+                    const genChecked = block.querySelector('input[name^="general_"]:checked');
+                    if (!genChecked) {
+                        alert('Silakan berikan penilaian pada pertanyaan Bagian C.');
+                        goToStep(4);
+                        block.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        return false;
+                    }
+                }
+
+                if (reasonBox && reasonBox.style.display !== 'none') {
+                    const rText = reasonBox.querySelector('textarea');
+                    if (rText && rText.required && !rText.value.trim()) {
+                        alert('Silakan lengkapi alasan pada pertanyaan Bagian C.');
+                        goToStep(4);
+                        rText.focus();
+                        return false;
+                    }
+                }
+            }
+        }
+
+        return true;
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
-        evaluateBonusEligibility();
+        evaluateQuestionEligibility();
+        const form = document.getElementById('surveyForm');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                if (!validateFullForm()) {
+                    e.preventDefault();
+                    return false;
+                }
+            });
+        }
     });
 </script>
 @endsection

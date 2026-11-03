@@ -612,6 +612,9 @@
                 <a href="{{ route('admin.dimensions.index') }}" class="sidebar-menu-item {{ request()->routeIs('admin.dimensions*') ? 'active' : '' }}" onclick="closeMobileSidebar()">
                     <i class="bi bi-diagram-3-fill"></i> Dimensi Indikator
                 </a>
+                <a href="{{ route('admin.rating-scales.index') }}" class="sidebar-menu-item {{ request()->routeIs('admin.rating-scales*') ? 'active' : '' }}" onclick="closeMobileSidebar()">
+                    <i class="bi bi-star-half"></i> Master Skala
+                </a>
 
                 <div class="sidebar-section-title">Akses Kuesioner</div>
                 @if(isset($sidebarActiveSurveys) && $sidebarActiveSurveys->count() > 0)

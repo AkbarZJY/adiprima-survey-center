@@ -9,7 +9,9 @@ use App\Models\SurveyPeriod;
 use App\Models\SurveyDimension;
 use App\Models\QuestionTemplate;
 use App\Models\SurveyQuestion;
+use App\Models\RatingScale;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 
@@ -48,7 +50,8 @@ class SurveyManagementController extends Controller
     public function create()
     {
         $categories = SurveyCategory::where('is_active', true)->orderBy('order')->orderBy('name')->get();
-        return view('admin.surveys.create', compact('categories'));
+        $ratingScales = RatingScale::orderByDesc('is_default')->orderBy('max_score')->orderBy('name')->get();
+        return view('admin.surveys.create', compact('categories', 'ratingScales'));
     }
 
     public function store(Request $request)
@@ -56,12 +59,17 @@ class SurveyManagementController extends Controller
         $request->validate([
             'title' => 'required|string|max:255',
             'category' => 'required|string|max:100',
+            'rating_scale_id' => 'required|exists:rating_scales,id',
             'description' => 'nullable|string',
             'icon' => 'nullable|string|max:50',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
             'is_active' => 'nullable|boolean',
+        ], [
+            'rating_scale_id.required' => 'Pilihan skala rating untuk kuesioner ini wajib ditentukan.',
         ]);
+
+        $ratingScale = RatingScale::findOrFail($request->rating_scale_id);
 
         $slug = Str::slug($request->title);
         $count = Survey::where('slug', 'like', "{$slug}%")->count();
@@ -84,6 +92,8 @@ class SurveyManagementController extends Controller
             'slug' => $slug,
             'category' => $request->category,
             'survey_category_id' => $categoryModel->id,
+            'rating_scale_id' => $ratingScale->id,
+            'rating_scale' => $ratingScale->max_score,
             'description' => $request->description,
             'icon' => $request->icon ?? 'bi-clipboard-data',
             'start_date' => $request->start_date,
@@ -106,9 +116,10 @@ class SurveyManagementController extends Controller
 
     public function edit($id)
     {
-        $survey = Survey::with(['activePeriod', 'categoryModel'])->findOrFail($id);
+        $survey = Survey::with(['activePeriod', 'categoryModel', 'ratingScale'])->findOrFail($id);
         $categories = SurveyCategory::where('is_active', true)->orderBy('order')->orderBy('name')->get();
-        return view('admin.surveys.edit', compact('survey', 'categories'));
+        $ratingScales = RatingScale::orderByDesc('is_default')->orderBy('max_score')->orderBy('name')->get();
+        return view('admin.surveys.edit', compact('survey', 'categories', 'ratingScales'));
     }
 
     public function update(Request $request, $id)
@@ -118,12 +129,17 @@ class SurveyManagementController extends Controller
         $request->validate([
             'title' => 'required|string|max:255',
             'category' => 'required|string|max:100',
+            'rating_scale_id' => 'required|exists:rating_scales,id',
             'description' => 'nullable|string',
             'icon' => 'nullable|string|max:50',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
             'is_active' => 'nullable|boolean',
+        ], [
+            'rating_scale_id.required' => 'Pilihan skala rating untuk kuesioner ini wajib ditentukan.',
         ]);
+
+        $ratingScale = RatingScale::findOrFail($request->rating_scale_id);
 
         $categoryModel = SurveyCategory::firstOrCreate(
             ['name' => $request->category],
@@ -138,11 +154,18 @@ class SurveyManagementController extends Controller
             'title' => $request->title,
             'category' => $request->category,
             'survey_category_id' => $categoryModel->id,
+            'rating_scale_id' => $ratingScale->id,
+            'rating_scale' => $ratingScale->max_score,
             'description' => $request->description,
             'icon' => $request->icon ?? $survey->icon,
             'start_date' => $request->start_date,
             'end_date' => $request->end_date,
             'is_active' => $request->has('is_active'),
+        ]);
+
+        // Sync rating questions in survey to this uniform scale
+        $survey->questions()->whereIn('question_type', ['single_rating', 'dual_rating'])->update([
+            'rating_scale' => $ratingScale->max_score
         ]);
 
         // Update active period
@@ -226,7 +249,7 @@ class SurveyManagementController extends Controller
      */
     public function questions($id)
     {
-        $survey = Survey::with(['questions.dimensionModel', 'questions.template', 'activePeriod', 'categoryModel'])->findOrFail($id);
+        $survey = Survey::with(['questions.dimensionModel', 'questions.template', 'activePeriod', 'categoryModel', 'ratingScale'])->findOrFail($id);
         
         $categories = SurveyCategory::with(['dimensions' => function ($q) {
             $q->orderBy('order')->orderBy('name');
@@ -260,20 +283,40 @@ class SurveyManagementController extends Controller
         $request->validate([
             'dimension_id' => 'nullable|exists:survey_dimensions,id',
             'section' => 'required|string|max:10',
+            'question_number' => [
+                'nullable',
+                'numeric',
+                Rule::unique('survey_questions')->where(function ($query) use ($survey, $request) {
+                    return $query->where('survey_id', $survey->id)->where('section', $request->section);
+                }),
+            ],
             'indicator_title' => 'nullable|string|max:255',
             'question_text' => 'required|string',
             'question_type' => 'required|string|in:dual_rating,single_rating,multiple_choice,essay',
-            'rating_scale' => 'required|numeric|in:4,5,10',
+            'rating_scale' => 'nullable|numeric',
             'require_reason_on_low_score' => 'nullable|boolean',
             'low_score_threshold' => 'nullable|numeric|min:1|max:10',
             'applies_to_employment_status' => 'nullable|string|max:100',
-            'applies_to_positions' => 'nullable|string|max:100',
+            'applies_to_positions' => 'nullable',
             'applies_to_gender' => 'nullable|string|max:50',
             'order' => 'nullable|numeric',
+        ], [
+            'question_number.unique' => 'Nomor soal :input pada Bagian ' . $request->section . ' sudah terisi. Silakan pilih nomor soal yang tersedia.',
         ]);
+
+        $positions = null;
+        if ($request->has('applies_to_positions')) {
+            if (is_array($request->applies_to_positions)) {
+                $filtered = array_filter($request->applies_to_positions, fn($p) => !empty($p) && $p !== '__all__');
+                $positions = !empty($filtered) ? implode(', ', $filtered) : null;
+            } elseif ($request->applies_to_positions !== '__all__' && !empty($request->applies_to_positions)) {
+                $positions = $request->applies_to_positions;
+            }
+        }
 
         $dimension = $request->dimension_id ? SurveyDimension::find($request->dimension_id) : null;
         $maxNum = SurveyQuestion::where('survey_id', $survey->id)->where('section', $request->section)->max('question_number') ?? 0;
+        $qNumber = $request->filled('question_number') ? (int)$request->question_number : ($maxNum + 1);
         $maxOrder = SurveyQuestion::where('survey_id', $survey->id)->max('order') ?? 0;
 
         $optionsJson = null;
@@ -292,16 +335,16 @@ class SurveyManagementController extends Controller
             'dimension_id' => $request->dimension_id,
             'dimension' => $dimension ? $dimension->name : 'General',
             'section' => $request->section,
-            'question_number' => $maxNum + 1,
+            'question_number' => $qNumber,
             'indicator_title' => $request->indicator_title,
             'question_text' => $request->question_text,
             'question_type' => $request->question_type,
-            'rating_scale' => $request->rating_scale ?? 4,
+            'rating_scale' => $survey->rating_scale ?? 4,
             'require_reason_on_low_score' => $request->has('require_reason_on_low_score'),
             'low_score_threshold' => $request->low_score_threshold ?? 2,
             'options_json' => $optionsJson,
             'applies_to_employment_status' => $request->applies_to_employment_status,
-            'applies_to_positions' => $request->applies_to_positions,
+            'applies_to_positions' => $positions,
             'applies_to_gender' => $request->applies_to_gender,
             'order' => $request->order ?? ($maxOrder + 1),
         ]);
@@ -319,16 +362,33 @@ class SurveyManagementController extends Controller
         $request->validate([
             'template_ids' => 'required|array',
             'template_ids.*' => 'exists:question_templates,id',
-            'section' => 'required|string|max:10',
+            'section' => 'nullable|string|max:10',
         ]);
 
         $templates = QuestionTemplate::whereIn('id', $request->template_ids)->with('dimension')->get();
-        $maxNum = SurveyQuestion::where('survey_id', $survey->id)->where('section', $request->section)->max('question_number') ?? 0;
+        $isAuto = empty($request->section) || $request->section === 'auto';
         $maxOrder = SurveyQuestion::where('survey_id', $survey->id)->max('order') ?? 0;
+
+        // Keep track of max question number per section for sequential numbering
+        $sectionNumbers = [];
+        $sections = ['A', 'B', 'C', 'D'];
+        foreach ($sections as $sec) {
+            $sectionNumbers[$sec] = SurveyQuestion::where('survey_id', $survey->id)
+                ->where('section', $sec)
+                ->max('question_number') ?? 0;
+        }
 
         $count = 0;
         foreach ($templates as $template) {
-            $maxNum++;
+            $targetSection = $isAuto ? ($template->section ?: 'B') : $request->section;
+
+            if (!isset($sectionNumbers[$targetSection])) {
+                $sectionNumbers[$targetSection] = SurveyQuestion::where('survey_id', $survey->id)
+                    ->where('section', $targetSection)
+                    ->max('question_number') ?? 0;
+            }
+
+            $sectionNumbers[$targetSection]++;
             $maxOrder++;
 
             SurveyQuestion::create([
@@ -336,12 +396,12 @@ class SurveyManagementController extends Controller
                 'dimension_id' => $template->dimension_id,
                 'question_template_id' => $template->id,
                 'dimension' => $template->dimension?->name ?? 'General',
-                'section' => $request->section,
-                'question_number' => $maxNum,
+                'section' => $targetSection,
+                'question_number' => $sectionNumbers[$targetSection],
                 'indicator_title' => $template->indicator_title,
                 'question_text' => $template->question_text,
                 'question_type' => $template->question_type,
-                'rating_scale' => $template->rating_scale,
+                'rating_scale' => $survey->rating_scale ?? 4,
                 'require_reason_on_low_score' => $template->require_reason_on_low_score,
                 'low_score_threshold' => $template->low_score_threshold,
                 'options_json' => $template->options_json,
@@ -367,18 +427,36 @@ class SurveyManagementController extends Controller
         $request->validate([
             'dimension_id' => 'nullable|exists:survey_dimensions,id',
             'section' => 'required|string|max:10',
-            'question_number' => 'required|numeric',
+            'question_number' => [
+                'required',
+                'numeric',
+                Rule::unique('survey_questions')->where(function ($query) use ($survey, $request) {
+                    return $query->where('survey_id', $survey->id)->where('section', $request->section);
+                })->ignore($questionId),
+            ],
             'indicator_title' => 'nullable|string|max:255',
             'question_text' => 'required|string',
             'question_type' => 'required|string|in:dual_rating,single_rating,multiple_choice,essay',
-            'rating_scale' => 'required|numeric|in:4,5,10',
+            'rating_scale' => 'nullable|numeric',
             'require_reason_on_low_score' => 'nullable|boolean',
             'low_score_threshold' => 'nullable|numeric|min:1|max:10',
             'applies_to_employment_status' => 'nullable|string|max:100',
-            'applies_to_positions' => 'nullable|string|max:100',
+            'applies_to_positions' => 'nullable',
             'applies_to_gender' => 'nullable|string|max:50',
             'order' => 'nullable|numeric',
+        ], [
+            'question_number.unique' => 'Nomor soal :input pada Bagian ' . $request->section . ' sudah terisi oleh butir pertanyaan lain.',
         ]);
+
+        $positions = null;
+        if ($request->has('applies_to_positions')) {
+            if (is_array($request->applies_to_positions)) {
+                $filtered = array_filter($request->applies_to_positions, fn($p) => !empty($p) && $p !== '__all__');
+                $positions = !empty($filtered) ? implode(', ', $filtered) : null;
+            } elseif ($request->applies_to_positions !== '__all__' && !empty($request->applies_to_positions)) {
+                $positions = $request->applies_to_positions;
+            }
+        }
 
         $dimension = $request->dimension_id ? SurveyDimension::find($request->dimension_id) : null;
 
@@ -401,12 +479,12 @@ class SurveyManagementController extends Controller
             'indicator_title' => $request->indicator_title,
             'question_text' => $request->question_text,
             'question_type' => $request->question_type,
-            'rating_scale' => $request->rating_scale ?? 4,
+            'rating_scale' => $survey->rating_scale ?? 4,
             'require_reason_on_low_score' => $request->has('require_reason_on_low_score'),
             'low_score_threshold' => $request->low_score_threshold ?? 2,
             'options_json' => $optionsJson,
             'applies_to_employment_status' => $request->applies_to_employment_status,
-            'applies_to_positions' => $request->applies_to_positions,
+            'applies_to_positions' => $positions,
             'applies_to_gender' => $request->applies_to_gender,
             'order' => $request->order ?? $question->order,
         ]);
@@ -421,6 +499,8 @@ class SurveyManagementController extends Controller
     {
         $survey = Survey::findOrFail($surveyId);
         $question = SurveyQuestion::where('survey_id', $survey->id)->findOrFail($questionId);
+        
+        $question->answers()->delete();
         $question->delete();
 
         return back()->with('success', 'Pertanyaan berhasil dihapus dari survei.');
